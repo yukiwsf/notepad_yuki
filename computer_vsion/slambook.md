@@ -1,5 +1,9 @@
 # slambook
 
+## 非线性优化
+
+
+
 ## 视觉里程计
 
 ### 直接法
@@ -115,7 +119,7 @@ $J=-\frac{\partial I_2}{\partial u}\frac{\partial u}{\partial\delta\xi}$
 
 在LK光流中，我们认为来自相机的图像是随时间变化的。图像可以看作时间的函数：$I(t)$。那么，一个在$t$时刻，位于$(x,y)$处的像素，它的灰度可以写成：$I(x,y,t)$。 
 
-这种方式把图像看成了关于位置与时间的函数，它的值域就是图像中像素的灰度。现在考虑某个固定的空间点，它在t时刻的像素坐标为$(x,y)$。由于相机的运动，它的图像坐标将发生变化。我们希望估计这个空间点在其他时刻里图像的位置，这里要引入光流法的基本假设： 
+这种方式把图像看成了关于位置与时间的函数，它的值域就是图像中像素的灰度。现在考虑某个固定的空间点，它在t时刻的像素坐标为$(x,y)$。由于相机的运动，它的图像坐标将发生变化。我们希望估计这个空间点在其它时刻里图像的位置，这里要引入光流法的基本假设： 
 
 灰度不变假设：同一个空间点的像素灰度值，在各个图像中是固定不变的。 
 
@@ -213,7 +217,7 @@ FAST是一种角点，主要检测局部像素灰度变化明显的地方，以�
 
 3. 以像素$p$为中心, 选取半径为$3$的圆上的$16$个像素点。 
 
-4. 假如选取的圆上，有连续的$N$个点的亮度大于$I_p+T$或小于$I_p−T$，那么像素$p$可以被认为是特征点（$N$通常取$12$，即为FAST-12。其它常用的$N$取值为$9$和$11$，他们分别被称为FAST-9，FAST-11）。 
+4. 假如选取的圆上，有连续的$N$个点的亮度大于$I_p+T$或小于$I_p−T$，那么像素$p$可以被认为是特征点（$N$通常取$12$，即为FAST-12。其它常用的$N$取值为$9$和$11$，它们分别被称为FAST-9，FAST-11）。 
 
 5. 循环以上四步，对每一个像素执行相同的操作。
 
@@ -260,6 +264,10 @@ BRIEF是一种二进制描述子，它的描述向量由许多个$0$和$1$组成
 不过，让我们先来看正确匹配的情况，等做完实验再回头去讨论误匹配问题。考虑两个时刻的图像。如果在图像$I_t$中提取到特征点$x^m_t,\quad m=1,2,...,M$，在图像$I_t+1$中提取到特征点$x^n_{t+1},\quad n=1,2,...,N$，如何寻找这两个集合元素的对应关系呢？最简单的特征匹配方法就是暴力匹配（Brute-Force Matcher）。即对每一个特征点$x^m_t$，与所有的$x^n_{t+1}$测量描述子的距离，然后排序，取最近的一个作为匹配点。描述子距离表示了两个特征之间的相似程度，不过在实际运用中还可以取不同的距离度量范数。对于浮点类型的描述子，使用欧氏距离进行度量即可。而对于二进制的描述子（比如BRIEF这样的），我们往往使用汉明距离（Hamming distance）做为度量：两个二进制串之间的汉明距离，指的是它们不同位数的个数。 
 
 然而，当特征点数量很大时，暴力匹配法的运算量将变得很大，特别是当我们想要匹配一个帧和一张地图的时候。这不符合我们在SLAM中的实时性需求。此时快速近似最近邻（FLANN）算法更加适合于匹配点数量极多的情况。
+
+##### OpenCV API
+
+`cv::ORB`
 
 ### 2D-2D: 对极几何
 
@@ -420,17 +428,17 @@ $\begin{bmatrix}u^1_1&v^1_1&1&0&0&0&-u^1_1u^1_2&-v^1_1u^1_2\\0&0&0&u^1_1&v^1_1&1
 
 #### OpenCV API
 
-计算基础矩阵：cv::findFundamentalMat。
+计算基础矩阵：`cv::findFundamentalMat`。
 
-计算本质矩阵：cv::findEssentialMat。
+计算本质矩阵：`cv::findEssentialMat`。
 
-计算单应矩阵：cv::findHomography。
+计算单应矩阵：`cv::findHomography`。
 
-从本质矩阵中恢复旋转和平移信息：cv::recoverPose。
+从本质矩阵中恢复旋转和平移信息：`cv::recoverPose`。
 
 ### 三角测量
 
-#### 三角测量估计深度
+#### 概述
 
 之前，我们使用对极几何约束估计了相机运动，也讨论这种方法的局限性。在得到运动之后，我们需要用相机的运动估计特征点的空间位置。在单目SLAM中，仅通过单张图像无法获得像素的深度信息，我们需要通过三角测量/三角化（Triangulation）的方法来估计地图点的深度。
 
@@ -452,11 +460,307 @@ $s_1x^{\wedge}_1x_1=0=s_2x^{\wedge}_1Rx_2+x^{\wedge}_1t$
 
 #### OpenCV API
 
-Reconstructs 3-dimensional points (in homogeneous coordinates) by using their observations with a stereo camera: cv::triangulatePoints.
+Reconstructs 3-dimensional points (in homogeneous coordinates) by using their observations with a stereo camera: `cv::triangulatePoints`.
 
 ## 3D-2D: PnP
 
+PnP（Perspective-n-Point）是求解3D到2D点对运动的方法。它描述了当我们知道n个3D空间点以及它们的投影位置时，如何估计相机所在的位姿。2D-2D的对极几何方法需要八个或八个以上的点对（以八点法为例），且存在着初始化、纯旋转和尺度的问题。然而，如果两张图像中，其中一张特征点的3D位置已知，那么最少只需三个点对（需要至少一个额外点验证结果）就可以估计相机运动。特征点的3D位置可以由三角化，或者由RGB-D相机的深度图确定。因此，在双目或RGB-D的视觉里程计中，我们可以直接使用PnP估计相机运动。而在单目视觉里程计中，必须先进行初始化，然后才能使用PnP。3D-2D方法不需要使用对极约束，又可以在很少的匹配点中获得较好的运动估计，是最重要的一种姿态估计方法。
 
+#### 直接线性变换
+
+考虑某个空间点$P$，它的齐次坐标为$P=(X, Y, Z, 1)^T$。在图像$I_1$中，投影到特征点$x_1=(u_1,v_1,1)^T$（以归一化平面齐次坐标表示）。此时相机的位姿$R$、$t$是未知的。与单应矩阵的求解类似，我们定义增广矩阵$[R|t]$为一个$3\times4$的矩阵，包含了旋转与平移信息。我们把它的展开形式列写如下：
+
+$s\begin{bmatrix}u_1\\v_1\\1\end{bmatrix}=\begin{bmatrix}t_1&t_2&t_3&t_4\\t_5&t_6&t_7&t_8\\t_9&t_{10}&t_{11}&t_{12}\end{bmatrix}\begin{bmatrix}X\\Y\\Z\\1\end{bmatrix}$
+
+用最后一行把$s$消去，得到两个约束：
+
+$u_1=\frac{t_1X+t_2Y+t_3Z+t_4}{t_9X+t_{10}Y+t_{11}Z+t_{12}}\quad v_1=\frac{t_5X+t_6Y+t_7Z+t_8}{t_9X+t_{10}Y+t_{11}Z+t_{12}}$
+
+为了简化表示，定义$T$的行向量：
+
+$t_1=[t_1,t_2,t_3,t_4]^T,\quad t_2=[t_5,t_6,t_7,t_8]^T,\quad t_3=[t_9,t_{10},t_{11},t_{12}]^T$
+
+于是有：
+
+$t^T_1P-t^T_3P_{u_1}=0$
+
+$t^T_2P-t^T_3P_{v_1}=0$
+
+请注意$t$是待求的变量，可以看到每个特征点提供了两个关于$t$的线性约束。假设一共有$N$个特征点，可以列出线性方程组：
+
+$\begin{bmatrix}P^T_1&0&-u_1P^T_1\\0&P^T_1&-v_1P^T\\\vdots&\vdots&\vdots\\0&P^T_N&-u_NP^T_N\\P^T_N&0&-v_NP^T_N\end{bmatrix}\begin{bmatrix}t_1\\t_2\\t_3\end{bmatrix}=0$
+
+由于$t$一共有$12$维，因此最少通过六对匹配点，即可实现矩阵$T$的线性求解，这种方法（也）称为直接线性变换（Direct Linear Transform，DLT）。当匹配点大于六对时，（又）可以使用SVD等方法对超定方程求最小二乘解。
+
+在DLT求解中，我们直接将$T$矩阵看成了$12$个未知数，忽略了它们之间的联系。因为旋转矩阵$R\in SO(3)$，用DLT求出的解不一定满足该约束，它是一个一般矩阵。平移向量比较好办，它属于向量空间。对于旋转矩阵$R$，我们必须针对DLT估计的$T$的左边$3\times3$的矩阵块，寻找一个最好的旋转矩阵对它进行近似。这可以由QR分解完成，相当于把结果从矩阵空间重新投影到$SE(3)$流形上，转换成旋转和平移两部分。
+
+需要解释的是，我们这里的$x_1$使用了归一化平面坐标，去掉了内参矩阵$K$的影响，这是因为内参$K$在SLAM中通常假设为已知。如果内参未知，那么我们也能用PnP去估计$K$、$R$、$t$三个量。然而由于未知量的增多，效果会差一些。
+
+#### P3P
+
+P3P是另一种解PnP的方法。它仅使用三对匹配点，对数据要求较少。
+
+<img title="" src="slambook/2025-04-15-14-25-32-image.png" alt="" width="259">
+
+P3P需要利用给定的三个点的几何关系。它的输入数据为三对3D-2D匹配点。记3D点为$A$、$B$、$C$，2D点为$a$、$b$、$c$，其中小写字母代表的点为大写字母在相机成像平面上的投影，如上图所示。此外，P3P还需要使用一对验证点，以从可能的解出选出正确的那一个（类似于对极几何情形）。记验证点对为$D−d$，相机光心为$O$。请注意，我们知道的是$A$、$B$、$C$在世界坐标系中的坐标，而不是在相机坐标系中的坐标。一旦3D点在相机坐标系下的坐标能够算出，我们就得到了3D-3D的对应点，把PnP问题转换为了ICP问题。
+
+首先，显然，三角形之间存在对应关系：
+
+$\Delta Oab-\Delta OAB,\quad\Delta Obc-\Delta OBC,\quad\Delta Oac-\Delta OAC$
+
+来考虑$Oab$和$OAB$的关系。利用余弦定理，有：
+
+$OA^2+OB^2-2OA\cdot OB\cdot \cos\langle a,b\rangle=AB^2$
+
+$OB^2+OC^2-2OB\cdot OC\cdot \cos\langle b,c\rangle=BC^2$
+
+$OA^2+OC^2-2OA\cdot OC\cdot \cos\langle a,c\rangle=AC^2$
+
+对上面三式全体除以$OC^2$，并且记$x=\frac{OA}{OC}$，$y=\frac{OB}{OC}$，得：
+
+$x^2+y^2-2xy\cos\langle a,b\rangle=\frac{AB^2}{OC^2}$
+
+$y^2+1^2-2y\cos\langle b,c\rangle=\frac{BC^2}{OC^2}$
+
+$x^2+1^2-2x\cos\langle a,c\rangle=\frac{AC^2}{OC^2}$
+
+记$v=\frac{AB^2}{OC^2}$，$uv=\frac{BC^2}{OC^2}$，$wv=\frac{AC^2}{OC^2}$，有：
+
+$x^2+y^2-2xy\cos\langle a,b\rangle-v=0$
+
+$y^2+1^2-2y\cos\langle b,c\rangle-uv=0$
+
+$x^2+1^2-2x\cos\langle a,c\rangle-wv=0$
+
+我们可以把第一个式子中的$v$放到等式一边，并代入第2、3两式，得：
+
+$(1−u)y^2−ux^2−\cos\langle b,c\rangle y+2uxy\cos\langle a,b\rangle +1=0$
+
+$(1−w)x^2−wy^2−\cos\langle a,c\rangle x+2wxy\cos\langle a,b\rangle +1=0$
+
+注意这些方程中的已知量和未知量。由于我们知道2D点的图像位置，三个余弦角$\cos\langle a,b\rangle$、$\cos\langle b,c\rangle$、$\cos\langle a,c\rangle$是已知的。同时，$u=\frac{BC^2}{AB^2}$、$w=\frac{AC^2}{AB^2}$可以通过$A$、$B$、$C$在世界坐标系下的坐标算出，变换到相机坐标系下之后，并不改变这个比值。该式中的$x$、$y$是未知的，随着相机移动会发生变化。因此，该方程组是关于$x$、$y$的一个二元二次方程（多项式方程）。解析地求解该方程组是一个复杂的过程，需要用吴消元法。类似于分解$E$的情况，该方程最多可能得到四个解，但我们可以用验证点来计算最可能的解，得到$A$、$B$、$C$在相机坐标系下的3D坐标。然后，根据3D-3D的点对，计算相机的运动$R$、$t$。
+
+从P3P的原理上可以看出，为了求解PnP，我们利用了三角形相似性质，求解投影点$a$、$b$、$c$在相机坐标系下的3D坐标，最后把问题转换成一个3D到3D的位姿估计问题。
+带有匹配信息的3D-3D位姿求解非常容易，所以这种思路是非常有效的。其它的一些方法，例如EPnP，亦采用了这种思路。然而，P3P也存在着一些问题：
+
+1. P3P只利用三个点的信息。当给定的配对点多于3组时，难以利用更多的信息。
+2. 如果3D点或2D点受噪声影响，或者存在误匹配，则算法失效。
+
+所以后续人们还提出了许多别的方法，如EPnP、UPnP等。它们利用更多的信息，而且用迭代的方式对相机位姿进行优化，以尽可能地消除噪声的影响。不过，相对于P3P来说，原理会更加复杂一些，所以我们建议读者阅读原始的论文，或通过实践来理解PnP过程。在SLAM当中，通常的做法是先使用P3P/EPnP等方法估计相机位姿，然后构建最小二乘优化问题对估计值进行调整（Bundle Adjustment）。
+
+#### Bundle Adjustment
+
+除了使用线性方法之外，我们可以把PnP问题构建成一个定义于李代数上的非线性最小二乘问题。前面说的线性方法，往往是先求相机位姿，再求空间点位置，而非线性优化则是把它们都看成优化变量，放在一起优化。这是一种非常通用的求解方式，我们可以用它对PnP或ICP给出的结果进行优化。在PnP中，这个Bundle Adjustment问题，是一个最小化重投影误差（Reprojection error）的问题。
+
+考虑$n$个三维空间点$P$和它们的投影$p$，我们希望计算相机的位姿$R$、$t$，它的李代数表示为$\xi$。假设某空间点坐标为$P_i=[X_i,Y_i,Z_i]^T$，其投影的像素坐标为$p_i=[u_i,v_i]^T$。像素位置与空间点位置的关系如下：
+
+$s_i\begin{bmatrix}u_i\\v_i\\1\end{bmatrix}=K\exp(\xi^{\wedge})\begin{bmatrix}X_i\\Y_i\\Z_i\\1\end{bmatrix}$
+
+除了用$\xi$为李代数表示的相机姿态之外，别的都和前面的定义保持一致。写成矩阵形式就是：
+
+$s_ip_i=K\exp(\xi^{\wedge})P_i$
+
+这中间隐含着的齐次坐标到非齐次的转换，否则按矩阵的乘法来说，维度是不对的。现在，由于相机位姿未知以及观测点的噪声，该等式存在一个误差。因此，我们把误差求和，构建最小二乘问题，然后寻找最好的相机位姿，使它最小化：
+
+$\xi^*=\argmin\limits_{\xi}\frac{1}{2}\sum\limits^n_{i=1}\Vert p_i-\frac{1}{s_i}K\exp(\xi^{\wedge})P_i\Vert^2_2$
+
+该问题的误差项，是将像素坐标（观测到的投影位置）与3D点按照当前估计的位姿进行投影得到的位置相比较得到的误差，所以称之为重投影误差。使用齐次坐标时，这个误差有3维。不过，由于$p$最后一维为$1$，该维度的误差一直为零，因而我们更多时候使用非齐次坐标，于是误差就只有二维了。如下图所示，我们通过特征匹配，知道了$p_1$和$p_2$是同一个空间点P的投影，但是我们不知道相机的位姿。在初始值中，$P$的投影$\hat{p}_2$与实际的$p_2$之间有一定的距离。于是我们调整相机的位姿，使得这个距离变小。不过，由于这个调整需要考虑很多个点，所以最后每个点的误差通常都不会精确为零。
+
+<img title="" src="slambook/2025-04-16-11-50-07-image.png" alt="" width="343">
+
+使用李代数，可以构建无约束的优化问题，很方便地通过G-N、L-M等优化算法进行求解。不过，在使用G-N和L-M之前，我们需要知道每个误差项关于优化变量的导数，也就是线性化：
+
+$e(x+\Delta x)\approx e(x)+J\Delta x$
+
+这里的$J$的形式是值得讨论的，甚至可以说是关键所在。我们固然可以使用数值导数，但如果能够推导解析形式时，我们会优先考虑解析导数。现在，当$e$为像素坐标误差（二维），$x$为相机位姿（六维）时，$J$将是一个$2\times6$的矩阵。我们来推导$J$的形式。
+
+首先，记变换到相机坐标系下的空间点坐标为$P'$，并且把它前三维取出来：
+
+$P'=(\exp(\xi^{\wedge})P)_{1:3}=[X',Y',Z']^T$
+
+那么，相机投影模型相对于$P'$则为：
+
+$su=KP'$
+
+展开之：
+
+$\begin{bmatrix}su\\sv\\s\end{bmatrix}=\begin{bmatrix}f_x&0&c_x\\0&f_y&c_y\\0&0&1\end{bmatrix}\begin{bmatrix}X'\\Y'\\Z'\end{bmatrix}$
+
+利用第3行消去$s$（实际上就是$P'$的距离），得：
+
+$u=f_x\frac{X'}{Z'}+c_x,\quad v=f_y\frac{Y'}{Z'}+c_y$
+
+当我们求误差时，可以把这里的$u$、$v$与实际的测量值比较，求差。在定义了中间变量后，我们对$\xi^{\wedge}$左乘扰动量$\delta\xi$，然后考虑$e$的变化关于扰动量的导数。利用链式法则，可以列写下：
+
+$\frac{\partial e}{\partial\delta\xi}=\lim\limits_{\delta\xi\rightarrow0}\frac{e(\delta\xi\oplus\xi)}{\delta\xi}=\frac{\partial e}{\partial P'}\frac{\partial P'}{\partial\delta\xi}$
+
+这里的$\oplus$指李代数上的左乘扰动。$\frac{\partial e}{\partial P'}$是误差关于投影点的导数：
+
+$\frac{\partial e}{\partial P'}=-\begin{bmatrix}\frac{\partial u}{\partial X'}&\frac{\partial u}{\partial Y'}&\frac{\partial u}{\partial Z'}\\\frac{\partial u}{\partial X'}&\frac{\partial v}{\partial Y'}&\frac{\partial v}{\partial Z'}\end{bmatrix}=-\begin{bmatrix}\frac{f_x}{Z'}&0&-\frac{f_xX'}{Z'^2}\\0&\frac{f_y}{Z'}&-\frac{f_yY'}{Z'^2}\end{bmatrix}$
+
+$\frac{\partial P'}{\partial\delta\xi}$为变换后的点关于李代数的导数：
+
+$\frac{\partial(TP)}{\partial\delta\xi}=(TP)^{\bigodot}=\begin{bmatrix}I&-P'^{\wedge}\\0^T&0^T\end{bmatrix}$
+
+而在$P'$的定义中，我们取出了前三维，于是得：
+
+$\frac{\partial P'}{\partial\delta\xi}=[I,-P'^{\wedge}]$
+
+将这两项相乘，就得到了$2\times6$的雅可比矩阵：
+
+$\frac{\partial e}{\partial\delta\xi}=-\begin{bmatrix}\frac{f_x}{Z'}&0&-\frac{f_xX'}{Z'^2}&-\frac{f_xX'Y'}{Z'^2}&f_x+\frac{f_xX^2}{Z'^2}&-\frac{f_xY'}{Z'}\\0&\frac{f_y}{Z'}&-\frac{f_yY'}{Z'^2}&-f_y-\frac{f_yY'^2}{Z'^2}&\frac{f_yX'Y'}{Z'^2}&\frac{f_yX'}{Z'}\end{bmatrix}$
+
+这个雅可比矩阵描述了重投影误差关于相机位姿李代数的一阶变化关系。我们保留了前面的负号，因为这是由于误差是由观测值减预测值定义的。它当然也可反过来，定义成"预测减观测"的形式。在那种情况下，只要去掉前面的负号即可。此外，如果$\mathfrak{se}(3)$的定义方式是旋转在前，平移在后时，只要把这个矩阵的前三列与后三列对调即可。
+
+另一方面，除了优化位姿，我们还希望优化特征点的空间位置。因此，需要讨论$e$关于空间点$P$的导数。所幸这个导数矩阵相对来说容易一些。仍利用链式法则，有：
+
+$\frac{\partial e}{\partial P}=\frac{\partial e}{\partial P'}\frac{\partial P'}{\partial P}$
+
+第一项已在前面推导了，第二项，按照定义：
+
+$P'=\exp(\xi^{\wedge})P=RP+t$
+
+我们发现$P'$对$P$求导后只剩下$R$。于是：
+
+$\frac{\partial e}{\partial P}=-\begin{bmatrix}\frac{f_x}{Z'}&0&-\frac{f_xX'}{Z'^2}\\0&\frac{f_y}{Z'}&-\frac{f_yY'}{Z'^2}\end{bmatrix}R$
+
+于是，我们推导了观测相机方程关于相机位姿与特征点的两个导数矩阵。它们十分重要，能够在优化过程中提供重要的梯度方向，指导优化的迭代。
+
+#### OpenCV API
+
+调用OpenCV的PnP求解，可选择EPNP、DLS等方法：`cv::solvePnP`。
+
+用Rodrigues公式转换为矩阵：`cv::Rodrigues`。
+
+## 3D-3D: ICP
+
+假设我们有一组配对好的3D点（比如我们对两个RGB-D图像进行了匹配）：
+
+$P=\{p_1,...,p_n\},\quad P'=\{p'_1,...,p'_n\}$
+
+现在，想要找一个欧氏变换$R$、$t$，使得：
+
+$\forall i,p_i=Rp'_i+t$
+
+这个问题可以用迭代最近点（Iterative Closest Point, ICP）求解。3D-3D位姿估计问题中，并没有出现相机模型，也就是说，仅考虑两组3D点之间的变换时，和相机并没有关系。因此，在激光SLAM中也会碰到ICP，不过由于激光数据特征不够丰富，我们无从知道两个点集之间的匹配关系，只能认为距离最近的两个点为同一个，所以这个方法称为迭代最近点。而在视觉中，特征点为我们提供了较好的匹配关系，所以整个问题就变得更简单了。在RGB-D SLAM中，可以用这种方式估计相机位姿。我们用ICP指代匹配好的两组点间运动估计问题。
+
+和PnP类似，ICP的求解也分为两种方式：利用线性代数的求解（主要是SVD），以及利用非线性优化方式的求解（类似于Bundle Adjustment）。
+
+### SVD方法
+
+首先我们看以SVD为代表的代数方法。根据前面描述的ICP问题，我们先定义第$i$对点的误差项：
+
+$e_i=p_i-(Rp'_i+t)$
+
+然后，构建最小二乘问题，求使误差平方和达到极小的$R$、$t$：
+
+$\min\limits_{R,t}J=\frac{1}{2}\sum\limits^n_{i=1}\Vert(p_i-(Rp'_i+t)\Vert^2_2$
+
+下面我们来推导它的求解方法。首先，定义两组点的质心：
+
+$p=\frac{1}{n}\sum\limits^n_{i=1}(p_i),\quad p'=\frac{1}{n}\sum\limits^n_{i=1}(p'_i)$
+
+请注意质心是没有下标的。随后，在误差函数中，我们作如下的处理：
+
+$\begin{aligned}\frac{1}{2}\sum\limits^n_{i=1}\Vert p_i-(Rp'_i+t)\Vert^2&=\frac{1}{2}\sum\limits^n_{i=1}\Vert p_i-Rp'_i-t-p+Rp'+p-Rp'\Vert^2\\&=\frac{1}{2}\sum\limits^n_{i=1}\Vert(p_i-p-R(p'_i-p'))+(p-Rp'-t)\Vert^2\\&=\frac{1}{2}\sum\limits^n_{i=1}(\Vert p_i-p-R(p'_i-p')\Vert^2+\Vert p-Rp'-t\Vert^2+2(p_i-p-R(p'_i-p'))^T(p-Rp'-t))\end{aligned}$
+
+注意到交叉项部分中，$(p_i−p−R(p'_i−p'))$在求和之后是为零的，因此优化目标函数可以简化为：
+
+$\min\limits_{R,t}J=\frac{1}{2}\sum\limits^n_{i=1}\Vert p_i-p-R(p'_i-p')\Vert^2+\Vert p-Rp'-t\Vert^2$
+
+仔细观察左右两项，我们发现左边只和旋转矩阵$R$相关，而右边既有$R$也有$t$，但只和质心相关。只要我们获得了$R$，令第二项为零就能得到$t$。于是，ICP可以分为以下三个步骤求解：
+
+1. 计算两组点的质心位置$p$、$p'$，然后计算每个点的去质心坐标：
+
+2. 根据以下优化问题计算旋转矩阵：$R^*=\argmin\limits_R\frac{1}{2}\Vert q_i-Rq'_i\Vert^2$
+
+3. 根据第二步的$R$，计算$t$：$t^*=p-Rp'$
+
+关注$R$的计算。展开关于$R$的误差项，得：
+
+$\frac{1}{2}\sum\limits^2_{i=1}\Vert q_i-Rq'_i\Vert^2=\frac{1}{2}\sum\limits^n_{i=1}(q^T_iq_i+q'^T_iR^TRq'_i-2q^T_iRq'_i)$
+
+注意到第一项和$R$无关，第二项由于$R^TR=I$，亦与$R$无关。因此，实际上优化目标函数变为：
+
+$\sum\limits^n_{i=1}-q^T_iRq'_i=\sum\limits^n_{i=1}-{\rm tr}(Rq'_iq^T_i)=-{\rm tr}(R\sum\limits^n_{i=1}q'_iq^T_i)$
+
+为了解$R$，先定义矩阵：
+
+$W=\sum\limits^n_{i=1}q_iq'^T_i$
+
+$W$是一个$3\times3$的矩阵，对$W$进行SVD分解，得：
+
+$W=U\Sigma V^T$
+
+其中，$\Sigma$为奇异值组成的对角矩阵，对角线元素从大到小排列，而$U$和$V$为正交矩阵。当$W$满秩时，$R$为：
+
+$R=UV^T$
+
+解得$R$后，求解$t$即可。
+
+### 非线性优化方法
+
+求解ICP的另一种方式是使用非线性优化，以迭代的方式去找最优值。该方法和PnP非常相似。以李代数表达位姿时，目标函数可以写成：
+
+$\min\limits_{\xi}=\frac{1}{2}\sum\limits^n_{i=1}\Vert(p_i-\exp(\xi^{\wedge})p'_i)\Vert^2_2$
+
+单个误差项关于位姿导数使用李代数扰动模型即可：
+
+$\frac{\partial e}{\partial\delta\xi}=-(\exp(\xi^{\wedge})p'_i)^{\odot}$
+
+于是，在非线性优化中只需不断迭代，我们就能找到极小值。而且，可以证明，ICP问题存在唯一解或无穷多解的情况。在唯一解的情况下，只要我们能找到极小值解，那么这个极小值就是全局最优值，因此不会遇到局部极小而非全局最小的情况。这也意味着ICP求解可以任意选定初始值。这是已经匹配点时求解ICP的一大好处。
+
+需要说明的是，我们这里讲的ICP，是指已经由图像特征给定了匹配的情况下，进行位姿估计的问题。在匹配已知的情况下，这个最小二乘问题实际上具有解析解，所以并没有必要进行迭代优化。ICP的研究者们往往更加关心匹配未知的情况。不过，在RGB-D SLAM中，由于一个像素的深度数据可能测量不到，所以我们可以混合着使用PnP和ICP优化：对于深度已知的特征点，用建模它们的3D-3D误差；对于深度未知的特征点，则建模3D-2D的重投影误差。于是，可以将所有的误差放在同一个问题中考虑，使得求解更加方便。
+
+### Eigen API
+
+SVD方法求解ICP：`Eigen::JacobiSVD`。
+
+非线性优化方法求解ICP：
+
+```cpp
+// g2o edge
+class EdgeProjectXYZRGBDPoseOnly : public g2o::BaseUnaryEdge<3, Eigen::Vector3d, g2o::VertexSE3Expmap> {
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    EdgeProjectXYZRGBDPoseOnly(const Eigen::Vector3d& point) : _point(point) {}
+    virtual void computeError() {
+        const g2o::VertexSE3Expmap* pose = static_cast<const g2o::VertexSE3Expmap*>(_vertices[0]);
+        // measurement is p, point is p'
+        _error = _measurement - pose->estimate().map(_point);
+    }
+    virtual void linearizeOplus() {
+        g2o::VertexSE3Expmap* pose = static_cast<g2o::VertexSE3Expmap *>(_vertices[0]);
+        g2o::SE3Quat T(pose->estimate());
+        Eigen::Vector3d xyz_trans = T.map(_point);
+        double x = xyz_trans[0];
+        double y = xyz_trans[1];
+        double z = xyz_trans[2];
+        _jacobianOplusXi(0,0) = 0;
+        _jacobianOplusXi(0,1) = -z;
+        _jacobianOplusXi(0,2) = y;
+        _jacobianOplusXi(0,3) = -1;
+        _jacobianOplusXi(0,4) = 0;
+        _jacobianOplusXi(0,5) = 0;
+        _jacobianOplusXi(1,0) = z;
+        _jacobianOplusXi(1,1) = 0;
+        _jacobianOplusXi(1,2) = -x;
+        _jacobianOplusXi(1,3) = 0;
+        _jacobianOplusXi(1,4) = -1;
+        _jacobianOplusXi(1,5) = 0;
+        _jacobianOplusXi(2,0) = -y;
+        _jacobianOplusXi(2,1) = x;
+        _jacobianOplusXi(2,2) = 0;
+        _jacobianOplusXi(2,3) = 0;
+        _jacobianOplusXi(2,4) = 0;
+        _jacobianOplusXi(2,5) = -1;
+    }
+    bool read(istream& in) {}
+    bool write(ostream& out) const {}
+protected:
+    Eigen::Vector3d _point;
+}; 
+```
 
 
 
@@ -840,9 +1144,9 @@ $P(x_c,x_p)=P(x_c)\cdot P(x_p|x_c)$
 
 #### 鲁棒核函数
 
-在前面的BA问题中，我们最小化误差项的二范数平方和，作为目标函数。这种做法虽然很直观，但存在一个严重的问题：如果出于误匹配等原因，某个误差项给的数据是错误的，会发生什么呢？我们把一条原本不应该加到图中的边给加进去了，然而优化算法并不能辨别出这是个错误数据，它会把所有的数据都当作误差来处理。这时，算法会看到一条误差很大的边，它的梯度也很大，意味着调整与它相关的变量会使目标函数下降更多。所以，算法将试图调整这条边所连接的节点的估计值，使它们顺应这条边的无理要求。由于这个边的误差真的很大，往往会抹平了其他正确边的影响，使优化算法专注于调整一个错误的值。这显然不是我们希望看到的。 
+在前面的BA问题中，我们最小化误差项的二范数平方和，作为目标函数。这种做法虽然很直观，但存在一个严重的问题：如果出于误匹配等原因，某个误差项给的数据是错误的，会发生什么呢？我们把一条原本不应该加到图中的边给加进去了，然而优化算法并不能辨别出这是个错误数据，它会把所有的数据都当作误差来处理。这时，算法会看到一条误差很大的边，它的梯度也很大，意味着调整与它相关的变量会使目标函数下降更多。所以，算法将试图调整这条边所连接的节点的估计值，使它们顺应这条边的无理要求。由于这个边的误差真的很大，往往会抹平了其它正确边的影响，使优化算法专注于调整一个错误的值。这显然不是我们希望看到的。 
 
-出现这种问题的原因是，当误差很大时，二范数增长得太快了。于是就有了核函数的存在。核函数保证每条边的误差不会大的没边，掩盖掉其他的边。具体的方式是，把原先误差的二范数度量，替换成一个增长没有那么快的函数，同时保证自己的光滑性质（不然没法求导）。因为它们使得整个优化结果更为鲁棒，所以又叫它们为鲁棒核函数（Robust Kernel）。 
+出现这种问题的原因是，当误差很大时，二范数增长得太快了。于是就有了核函数的存在。核函数保证每条边的误差不会大的没边，掩盖掉其它的边。具体的方式是，把原先误差的二范数度量，替换成一个增长没有那么快的函数，同时保证自己的光滑性质（不然没法求导）。因为它们使得整个优化结果更为鲁棒，所以又叫它们为鲁棒核函数（Robust Kernel）。 
 
 鲁棒核函数有许多种，例如最常用的Huber核：
 
@@ -1121,7 +1425,7 @@ $s(v_A-v_B)=2\sum\limits_{i=i}^N|v_{Ai}|+|v_{Bi}|-|v_{Ai}-v_{Bi}|$
 首先，我们对图像提取特征，并根据描述子计算了特征之间的匹配。换言之，通过特征，我们对某一个空间点进行了跟踪，知道了它在各个图像之间的位置。
 
 然后，由于我们无法仅用一张图像确定特征点的位置，所以必须通过不同视角下的观测，估计它的深度，原理即三角测量。
-那么，在稠密深度图估计中，不同之处在于，我们无法把每个像素都当作特征点，计算描述子。因此，稠密深度估计问题中，匹配就成为很重要的一环：如何确定第一张图的某像素，出现在其他图里的位置呢？这需要用到极线搜索和块匹配技术。然后，当我们知道了某个像素在各个图中的位置，就能像特征点那样，利用三角测量确定它的深度。不过不同的是，在这里我们要使用很多次三角测量让深度估计收敛，而不仅是一次。我们希望深度估计，能够随着测量的增加，从一个非常不确定的量，逐渐收敛到一个稳定值。这就是深度滤波器技术。
+那么，在稠密深度图估计中，不同之处在于，我们无法把每个像素都当作特征点，计算描述子。因此，稠密深度估计问题中，匹配就成为很重要的一环：如何确定第一张图的某像素，出现在其它图里的位置呢？这需要用到极线搜索和块匹配技术。然后，当我们知道了某个像素在各个图中的位置，就能像特征点那样，利用三角测量确定它的深度。不过不同的是，在这里我们要使用很多次三角测量让深度估计收敛，而不仅是一次。我们希望深度估计，能够随着测量的增加，从一个非常不确定的量，逐渐收敛到一个稳定值。这就是深度滤波器技术。
 
 #### 极线搜索与块匹配
 
