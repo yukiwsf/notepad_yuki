@@ -1,5 +1,21 @@
 # slambook
 
+## 相机与图像
+
+### 相机模型
+
+相机将三维世界中的坐标点（单位为米）映射到二维图像平面（单位为像素）的过程能够用一个几何模型进行描述。这个模型有很多种，其中最简单的称为针孔模型。针孔模型是很常用，而且有效的模型，它描述了一束光线通过针孔之后，在针孔背面投影成像的关系。同时，由于相机镜头上的透镜的存在，会使得光线投影到成像平面的过程中会产生畸变。因此，我们使用针孔和畸变两个模型来描述整个投影过程。
+
+#### 针孔相机模型
+
+
+
+
+
+
+
+
+
 ## 非线性优化
 
 经典SLAM模型的运动方程和观测方程中，位姿可以由变换矩阵来描述，然后用李代数进行优化。观测方程由相机成像模型给出，其中内参是随相机固定的，而外参则是相机的位姿。这就是经典SLAM模型在视觉情况下的具体表达。
@@ -96,7 +112,7 @@ $J(x)=\sum\limits_ke^T_{v,k}R^{-1}_ke_{v,k}+\sum\limits_k\sum\limits_je^T_{y,k,j
 
 - 最后，我们使用了平方形式（二范数）度量误差，它是直观的，相当于欧氏空间中距离的平方。但它也存在着一些问题，并且不是唯一的度量方式。我们亦可使用其它的范数构建优化问题。
 
-#### 非线性最小二乘
+### 非线性最小二乘
 
 先来考虑一个简单的最小二乘问题：
 
@@ -126,7 +142,7 @@ $\frac{{\rm d}f}{{\rm d}x}=0$
 
 接下来的问题是，增量$\Delta{x_k}$如何确定？实际上，研究者们已经花费了大量精力探索增量的求解方式。以下介绍两类办法，它们用不同的手段来寻找这个增量。目前这两种方法在视觉SLAM的优化问题上也被广泛采用，大多数优化库都可以使用它们。
 
-##### 一阶和二阶梯度法
+#### 一阶和二阶梯度法
 
 求解增量最直观的方式是将目标函数在x附近进行泰勒展开：
 
@@ -150,7 +166,7 @@ $H\Delta x=-J^T$
 
 不过，这两种方法也存在它们自身的问题。最速下降法过于贪心，容易走出锯齿路线，反而增加了迭代次数。而牛顿法则需要计算目标函数的$H$矩阵，这在问题规模较大时非常困难，我们通常倾向于避免$H$的计算。所以，接下来介绍两类更加实用的方法：高斯-牛顿法和列文伯格-马夸尔特方法。
 
-##### Gauss-Newton
+#### Gauss-Newton
 
 Gauss Newton是最优化算法里面最简单的方法之一。它的思想是将$f(x)$进行一阶的泰勒展开（请注意不是目标函数$f(x)^2$）：
 
@@ -158,9 +174,285 @@ $f(x+\Delta x)\approx f(x)+J(x)\Delta x$
 
 这里$J(x)$为$f(x)$关于$x$的导数，实际上是一个$m\times n$的矩阵，也是一个雅可比矩阵。根据前面的框架，当前的目标是为了寻找下降矢量$\Delta x$，使得$\Vert f(x)\Vert^2_2$达到最小。为了求$\Delta x$，我们需要解一个线性的最小二乘问题：
 
+$\Delta x^*=\argmin\limits_{\Delta x}\frac{1}{2}\Vert f(x)+J(x)\Delta x\Vert^2$
 
+这个方程与之前有什么不一样呢？根据极值条件，将上述目标函数对$\Delta x$求导，并令导数为零。由于这里考虑的是$\Delta x$的导数（而不是$x$），我们最后将得到一个线性的方程。为此，先展开目标函数的平方项：
 
+$\begin{aligned}\frac{1}{2}\Vert f(x)+J(x)\Delta x\Vert^2&=\frac{1}{2}(f(x)+J(x)\Delta x)^T(f(x)+J(x)\Delta x)\\&=\frac{1}{2}(\Vert f(x)\Vert^2_2+2f(x)^TJ(x)\Delta x+\Delta x^TJ(x)^TJ(x)\Delta x)\end{aligned}$
 
+求上式关于$\Delta x$的导数，并令其为$0$：
+
+$2J(x)^Tf(x)+2J(x)^TJ(x)\Delta x=0$
+
+可以得到如下方程组：
+
+$J(x)^TJ(x)\Delta x=-J(x)^Tf(x)$
+
+注意，我们要求解的变量是$\Delta x$，因此这是一个线性方程组，我们称它为增量方程，也可以称为高斯牛顿方程（Gauss-Newton equations）或者正规方程（Normal equations）。我们把左边的系数定义为$H$，右边定义为$g$，那么上式变为：
+
+$H\Delta x=g$
+
+这里把左侧记作$H$是有意义的。对比牛顿法可见，Gauss-Newton用$J^TJ$作为牛顿法中二阶Hessian矩阵的近似，从而省略了计算H的过程。求解增量方程是整个优化问题的核心所在。如果我们能够顺利解出该方程，那么Gauss-Newton的算法步骤可以写成：
+
+1. 给定初始值$x_0$。
+
+2. 对于第$k$次迭代，求出当前的雅可比矩阵$J(x_k)$和误差$f(x_k)$。
+
+3. 求解增量方程：$H\Delta x_k=g$。
+
+4. 若$\Delta x_k$足够小，则停止。否则，令$x_{k+1}=x_k+\Delta x_k$。
+
+从算法步骤中可以看到，增量方程的求解占据着主要地位。原则上，它要求我们所用的近似$H$矩阵是可逆的（而且是正定的），但实际数据中计算得到的$J^TJ$却只有半正定性。也就是说，在使用Gauss-Newton方法时，可能出现$J^TJ$为奇异矩阵或者病态（ill-condition）的情况，此时增量的稳定性较差，导致算法不收敛。更严重的是，就算我们假设$H$非奇异也非病态，如果我们求出来的步长$\Delta x$太大，也会导致我们采用的局部近似不够准确，这样一来我们甚至都无法保证它的迭代收敛，哪怕是让目标函数变得更大都是有可能的。 
+
+尽管Gauss-Newton法有这些缺点，但是它依然值得我们去学习，因为在非线性优化里，相当多的算法都可以归结为Gauss-Newton法的变种。这些算法都借助了Gauss-Newton法的思想并且通过自己的改进修正Gauss-Newton法的缺点。例如一些线搜索方法（line search method），这类改进就是加入了一个标量\alpha，在确定了进一步找到$\alpha$使得$\Vert f(x+\alpha\Delta x)\Vert^2$达到最小，而不是像Gauss-Newton法那样简单地令$\alpha=1$。 
+
+Levenberg-Marquadt方法在一定程度上修正了这些问题，一般认为它比Gauss-Newton更为鲁棒。尽管它的收敛速度可能会比Gauss-Newton更慢，被称之为阻尼牛顿法（Damped Newton Method），但是在SLAM里面却被大量应用。
+
+#### Levenberg-Marquadt
+
+由于Gauss-Newton方法中采用的近似二阶泰勒展开只能在展开点附近有较好的近似效果，所以我们很自然地想到应该给/Delta{x}添加一个信赖区域（Trust Region），不能让它太大而使得近似不准确。非线性优化种有一系列这类方法，这类方法也被称之为信赖区域方法（Trust Region Method）。在信赖区域里边，我们认为近似是有效的；出了这个区域，近似可能会出问题。 
+
+那么如何确定这个信赖区域的范围呢？一个比较好的方法是根据我们的近似模型跟实际函数之间的差异来确定这个范围：如果差异小，我们就让范围尽可能大；如果差异大，我们就缩小这个近似范围。因此，考虑使用$\rho=\frac{f(x+\Delta x)-f(x)}{J(x)\Delta x}$来判断泰勒近似是否够好。$\rho$的分子是实际函数下降的值，分母是近似模型下降的值。如果$\rho$接近于$1$，则近似是好的。如果$\rho$太小，说明实际减小的值远少于近似减小的值，则认为近似比较差，需要缩小近似范围。反之，如果$\rho$比较大，则说明实际下降的比预计的更大，我们可以放大近似范围。于是，我们构建一个改良版的非线性优化框架，该框架会比Gauss Newton有更好的效果：
+
+1. 给定初始值$x_0$，以及初始优化半径$\mu$。
+
+2. 对于第$k$次迭代，求解：$\min\limits_{\Delta x_k}\frac{1}{2}\Vert f(x_k)+J(x_k)\Delta x_k\Vert^2,\quad s.t.\ \Vert D\Delta x_k\Vert^2\leq \mu$。这里$\mu$是信赖区域的半径，$D$将在后文说明。
+
+3. 计算$\rho$。
+
+4. 若$\rho\gt\frac{3}{4}$，则$\mu=2\mu$；
+
+5. 若$\rho\lt\frac{3}{4}$，则$\mu=0.5\mu$；
+
+6. 如果$\mu$大于某阈值，认为近似可行。令$x_{k+1}=x_k+\Delta x_k$。
+
+7. 判断算法是否收敛。如果不收敛则返回2，否则结束。
+
+这里近似范围扩大的倍数和阈值都是经验值，可以替换成别的数值。我们把增量限定于一个半径为$\mu$的球中，认为只在这个球内才是有效的。带上$D$之后，这个球可以看成一个椭球。在Levenberg提出的优化方法中，把$D$取成单位阵$I$，相当于直接把$\Delta x$约束在一个球中。随后，Marqaurdt提出将$D$取成非负数对角阵——实际中通常用$J^TJ$的对角元素平方根，使得在梯度小的维度上约束范围更大一些。 
+
+不论如何，在L-M优化中，我们都需要步骤2中的子问题来获得梯度。这个子问题是带不等式约束的优化问题，我们用Lagrange乘子将它转化为一个无约束优化问题：
+
+$(H+\lambda D^TD)\Delta x=g$
+
+可以看到，增量方程相比于Gauss-Newton，多了一项$\lambda{D^TD}$。如果考虑它的简化形式，即$D=I$，那么相当于求解：
+
+$(H+\lambda I)\Delta x=g$
+
+我们看到，当参数$\lambda$比较小时，$H$占主要地位，这说明二次近似模型在该范围内是比较好的，L-M方法更接近于G-N法。另一方面，当$\lambda$比较大时，$\lambda I$占据主要地位，L-M更接近于一阶梯度下降法（即最速下降），这说明附近的二次近似不够好。L-M的求解方式，可在一定程度上避免线性方程组的系数矩阵的非奇异和病态问题，提供更稳定更准确的增量$\Delta$。
+
+### Ceres
+
+Ceres库面向通用的最小二乘问题的求解，作为用户，我们需要做的就是定义优化问题，然后设置一些选项，输入进Ceres求解即可。Ceres求解的最小二乘问题最一般的形式如下（带边界的核函数最小二乘）：
+
+$\min\limits_x\frac{1}{2}\sum\limits_i\rho_i(\Vert f_i(x_{i_1},x_{i_1})\Vert^2),\quad s.t.\ l_j\leq x_j\leq u_j$
+
+可以看到，目标函数由许多平方项，经过一个核函数$\rho(\cdot)$之后，求和组成。在最简单的情况下，取$\rho$为恒等函数，则目标函数即为许多项的平方和。在这个问题中，优化变量为$x_1,...,x_n$，$f_i$称为代价函数（Cost function），在SLAM中亦可理解为误差项。$l_j$和$u_j$为第$j$个优化变量的上限和下限。在最简单的情况下，取$l_j=-\infty,u_j=\infty$（不限制优化变量的边界），并且取$\rho$为恒等函数时，就得到了无约束的最小二乘问题。
+
+在Ceres中，我们将定义优化变量$x$和每个代价函数$f_i$，再调用Ceres进行求解。我们可以选择使用G-N或者L-M进行梯度下降，并设定梯度下降的条件，Ceres会在优化之后，将最优估计值返回给我们。下面，我们通过一个曲线拟合的实验，来实际操作一下Ceres，理解优化的过程。
+
+```cpp
+#include <iostream>
+#include <opencv2/core/core.hpp>
+#include <ceres/ceres.h>
+#include <chrono>
+
+using namespace std;
+
+// 代价函数的计算模型
+struct CURVE_FITTING_COST {
+    CURVE_FITTING_COST(double x, double y) : _x(x), _y(y) {}
+    // 残差的计算
+    template <typename T>
+    bool operator() (
+        const T* const abc,  // 模型参数, 有3维
+        T* residual  // 残差
+    ) const {
+        residual[0] = T(_y) - ceres::exp (abc[0] * T(_x) * T(_x) + abc[1] * T(_x) + abc[2]);  // y-exp(ax^2+bx+c)
+        return true;
+    }
+    const double _x, _y;    // x, y数据
+};
+
+int main(int argc, char** argv) {
+    double a = 1.0, b = 2.0, c = 1.0;  // 真实参数值
+    int N = 100;  // 数据点
+    double w_sigma = 1.0;  // 噪声Sigma值
+    cv::RNG rng;  // OpenCV随机数产生器
+    double abc[3] = { 0, 0, 0 };  // abc参数的估计值
+    vector<double> x_data, y_data;  // 数据
+    cout << "generating data: " << endl;
+    for(int i = 0; i < N; i++) {
+        double x = i / 100.0;
+        x_data.push_back(x);
+        y_data.push_back(
+            exp(a * x * x + b * x + c) + rng.gaussian(w_sigma)
+        );
+        cout << x_data[i] << " " << y_data[i] << endl;
+    }
+    // 构建最小二乘问题
+    ceres::Problem problem;
+    for(int i = 0; i < N; i++) {
+        problem.AddResidualBlock (  // 向问题中添加误差项
+        // 使用自动求导, 模板参数: 误差类型, 输出维度, 输入维度, 维数要与前面struct中一致
+            new ceres::AutoDiffCostFunction<CURVE_FITTING_COST, 1, 3>( 
+                new CURVE_FITTING_COST(x_data[i], y_data[i])
+            ),
+            nullptr,  // 核函数, 这里不使用, 为空
+            abc  // 待估计参数
+        );
+    }
+    // 配置求解器
+    ceres::Solver::Options options;  // 这里有很多配置项可以填
+    options.linear_solver_type = ceres::DENSE_QR;  // 增量方程如何求解
+    options.minimizer_progress_to_stdout = true;  // 输出到cout
+    ceres::Solver::Summary summary;  // 优化信息
+    chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
+    ceres::Solve (options, &problem, &summary);  // 开始优化
+    chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
+    chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
+    cout << "solve time cost = " << time_used.count() << " seconds. " << endl;
+    // 输出结果
+    cout << summary.BriefReport() << endl;
+    cout << "estimated a,b,c = ";
+    for(auto a : abc) cout << a << " ";
+    cout << endl;
+    return 0;
+}
+```
+
+### g2o
+
+图优化，是把优化问题表现成图（Graph）的一种方式。这里的图是图论意义上的图。一个图由若干个顶点（Vertex），以及连接着这些节点的边（Edge）组成。进而，用顶点表示优化变量，用边表示误差项。于是，对任意一个上述形式的非线性最小二乘问题，我们可以构建与之对应的一个图。
+
+<img src="slambook/2025-04-21-20-41-51-image.png" title="" alt="" width="444">
+
+上图是一个简单的图优化例子。我们用三角形表示相机位姿节点，用圆形表示路标点，它们构成了图优化的顶点；同时，蓝色线表示相机的运动模型，红色虚线表示观测模型，它们构成了图优化的边。此时，虽然整个问题的数学形式仍是式那样，但现在我们可以直观地看到问题的结构了。如果我们希望，也可以做去掉孤立顶点或优先优化边数较多（或按图论的术语，度数较大）的顶点这样的改进。但是最基本的图优化，是用图模型来表达一个非线性最小二乘的优化问题。而我们可以利用图模型的某些性质，做更好的优化。
+g2o为SLAM提供了图优化所需的内容。下面我们来演示一下g2o的使用方法。
+
+为了使用g2o，首先要做的是将曲线拟合问题抽象成图优化。这个过程中，只要记住节点为优化变量，边为误差项即可。因此，曲线拟合的图优化问题可以画成下图的形式。
+
+<img src="slambook/2025-04-21-21-04-48-image.png" title="" alt="" width="387">
+
+在曲线拟合问题中，整个问题只有一个顶点：曲线模型的参数$a,b,c$；而每个带噪声的数据点，构成了一个个误差项，也就是图优化的边。但这里的边与我们平时想的边不太一样，它们是一元边（Unary Edge），即只连接一个顶点——因为我们整个图只有一个顶点。所以在上图中，我们就只能把它画成自己连到自己的样子了。事实上，图优化中一条边可以连接一个、两个或多个顶点，这主要反映在每个误差与多少个优化变量有关。在稍微有些玄妙的说法中，我们把它叫做超边（Hyper Edge），整个图叫做超图（Hyper Graph）。
+
+弄清了这个图模型之后，接下来就是在g2o中建立该模型，进行优化了。作为g2o的用户，我们要做的事主要有以下几个步骤：
+
+1. 定义顶点和边的类型；
+2. 构建图；
+3. 选择优化算法；
+4. 调用g2o进行优化，返回结果。
+
+```cpp
+#include <iostream>
+#include <g2o/core/base_vertex.h>
+#include <g2o/core/base_unary_edge.h>
+#include <g2o/core/block_solver.h>
+#include <g2o/core/optimization_algorithm_levenberg.h>
+#include <g2o/core/optimization_algorithm_gauss_newton.h>
+#include <g2o/core/optimization_algorithm_dogleg.h>
+#include <g2o/solvers/dense/linear_solver_dense.h>
+#include <Eigen/Core>
+#include <opencv2/core/core.hpp>
+#include <cmath>
+#include <memory>
+#include <chrono>
+using namespace std; 
+
+// 曲线模型的顶点, 模板参数: 优化变量维度和数据类型
+class CurveFittingVertex : public g2o::BaseVertex<3, Eigen::Vector3d> {
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    virtual void setToOriginImpl() {  // 重置
+        _estimate << 0, 0, 0;
+    }
+    virtual void oplusImpl(const double* update) {  // 更新
+        _estimate += Eigen::Vector3d(update);
+    }
+    // 存盘和读盘: 留空
+    virtual bool read(istream& in) {}
+    virtual bool write(ostream& out) const {}
+};
+
+// 误差模型 模板参数: 观测值维度, 类型, 连接顶点类型
+class CurveFittingEdge : public g2o::BaseUnaryEdge<1, double, CurveFittingVertex> {
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    CurveFittingEdge(double x): BaseUnaryEdge(), _x(x) {}
+    // 计算曲线模型误差
+    void computeError() {
+        const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
+        const Eigen::Vector3d abc = v->estimate();
+        _error(0, 0) = _measurement - std::exp(abc(0, 0) * _x * _x + abc(1, 0) * _x + abc(2, 0));
+    }
+    virtual bool read(istream& in) {}
+    virtual bool write(ostream& out) const {}
+public:
+    double _x;  // x值, y值为 _measurement
+};
+
+int main(int argc, char** argv) {
+    double a = 1.0, b = 2.0, c = 1.0;         // 真实参数值
+    int N = 100;                          // 数据点
+    double w_sigma = 1.0;                 // 噪声Sigma值
+    cv::RNG rng;                        // OpenCV随机数产生器
+    double abc[3] = { 0, 0, 0 };            // abc参数的估计值
+
+    vector<double> x_data, y_data;      // 数据
+    
+    cout << "generating data: " << endl;
+    for(int i = 0; i < N; i++) {
+        double x = i / 100.0;
+        x_data.push_back(x);
+        y_data.push_back (
+            exp(a * x * x + b * x + c) + rng.gaussian(w_sigma)
+        );
+        cout << x_data[i] << " " << y_data[i] << endl;
+    }
+    
+    // 构建图优化，先设定g2o
+    typedef g2o::BlockSolver< g2o::BlockSolverTraits<3, 1> > Block;  // 每个误差项优化变量维度为3，误差值维度为1
+    auto linearSolver = std::make_unique<g2o::LinearSolverDense<Block::PoseMatrixType>>(); // 线性方程求解器
+    auto solver_ptr = std::make_unique<Block>(std::move(linearSolver));      // 矩阵块求解器
+    // 梯度下降方法，从GN, LM, DogLeg 中选
+    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(std::move(solver_ptr));
+    // g2o::OptimizationAlgorithmGaussNewton* solver = new g2o::OptimizationAlgorithmGaussNewton( solver_ptr );
+    // g2o::OptimizationAlgorithmDogleg* solver = new g2o::OptimizationAlgorithmDogleg( solver_ptr );
+    g2o::SparseOptimizer optimizer;     // 图模型
+    optimizer.setAlgorithm(solver);   // 设置求解器
+    optimizer.setVerbose(true);       // 打开调试输出
+    
+    // 往图中增加顶点
+    CurveFittingVertex* v = new CurveFittingVertex();
+    v->setEstimate(Eigen::Vector3d(0, 0, 0));
+    v->setId(0);
+    optimizer.addVertex(v);
+    
+    // 往图中增加边
+    for(int i = 0; i < N; i++) {
+        CurveFittingEdge* edge = new CurveFittingEdge(x_data[i]);
+        edge->setId(i);
+        edge->setVertex(0, v);                // 设置连接的顶点
+        edge->setMeasurement(y_data[i]);      // 观测数值
+        edge->setInformation(Eigen::Matrix<double, 1, 1>::Identity() * 1 / (w_sigma * w_sigma)); // 信息矩阵：协方差矩阵之逆
+        optimizer.addEdge(edge);
+    }
+    
+    // 执行优化
+    cout << "start optimization" << endl;
+    chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
+    optimizer.initializeOptimization();
+    optimizer.optimize(100);
+    chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
+    chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
+    cout << "solve time cost = " << time_used.count() << " seconds. " << endl;
+    
+    // 输出优化值
+    Eigen::Vector3d abc_estimate = v->estimate();
+    cout << "estimated model: " << abc_estimate.transpose() << endl;
+    
+    return 0;
+}
+```
 
 ## 视觉里程计
 
