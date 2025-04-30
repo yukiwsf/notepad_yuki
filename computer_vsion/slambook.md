@@ -8,11 +8,87 @@
 
 #### 针孔相机模型
 
+在初中物理课堂上，我们可能都见过一个蜡烛投影实验：在一个暗箱的前方放着一支点燃的蜡烛，蜡烛的光透过暗箱上的一个小孔投影在暗箱的后方平面上，并在这个平面上形成了一个倒立的蜡烛图像。在这个过程中，小孔模型能够把三维世界中的蜡烛投影到一个二维成像平面。同理，我们可以用这个简单的模型来解释相机的成像过程。如下图所示。
 
+<img title="" src="slambook/2025-04-22-22-14-03-image.png" alt="" width="516">
 
+现在来对这个简单的针孔模型进行几何建模。设$O-x-y-z$为相机坐标系，习惯上我们让$z$轴指向相机前方，$x$向右，$y$向下。$O$为摄像机的光心，也是针孔模型中的针孔。现实世界的空间点$P$，经过小孔$O$投影之后，落在物理成像平面$O'-x'- y'$上，成像点为$P'$。设$P$的坐标为$[X,Y,Z]^T$，$P'$为$[X',Y',Z']^T$，并且设物理成像平面到小孔的距离为$f$（焦距）。那么，根据三角形相似关系，有：
 
+$\frac{Z}{f}=-\frac{X}{X'}=-\frac{Y}{Y'}$
 
+其中负号表示成的像是倒立的。为了简化模型，我们把可以成像平面对称到相机前方，和三维空间点一起放在摄像机坐标系的同一侧，如下图中间的样子所示。这样做可以把公式中的负号去掉，使式子更加简洁：
 
+$\frac{Z}{f}=\frac{X}{X'}=\frac{Y}{Y'}$
+
+![](slambook/2025-04-26-10-14-48-image.png)
+
+整理得：
+
+$X'=f\frac{X}{Z}$
+
+$Y'=f\frac{Y}{Z}$
+
+为什么我们可以看似随意地把成像平面挪到前方呢？这只是我们处理真实世界与相机投影的数学手段，并且，大多数相机输出的图像并不是倒像——相机自身的软件会帮你翻转这张图像，所以你看到的一般是正着的像，也就是对称的成像平面上的像。所以，尽管从物理原理来说，小孔成像应该是倒像，但由于我们对图像作了预处理，所以理解成在对称平面上的像，并不会带来什么坏处。于是，在不引起歧义的情况下，我们也不加限制地称后一种情况为针孔模型。
+
+上式描述了点$P$和它的像之间的空间关系。不过，在相机中，我们最终获得的是一个个的像素，这需要在成像平面上对像进行采样和量化。为了描述传感器将感受到的光线转换成图像像素的过程，我们设在物理成像平面上固定着一个像素平面$o-u-v$。我们在像素平面得到了$P'$的像素坐标：$[u,v]^T$。
+
+像素坐标系通常的定义方式是：原点$o'$位于图像的左上角，$u$轴向右与$x$轴平行，$v$轴向下与$y$轴平行。像素坐标系与成像平面之间，相差了一个缩放和一个原点的平移。我们设像素坐标在$u$轴上缩放了$\alpha$倍，在$v$上缩放了$\beta$倍。同时，原点平移了$[c_x,c_y]^T$。那么，$P'$的坐标与像素坐标$[u,v]^T$的关系为：
+
+$\begin{cases}u=\alpha X'+c_x\\v=\beta Y'+c_y\end{cases}$
+
+代入得（把$f$合并成$f_x$，把$f$合并成$f_y$）：
+
+$\begin{cases}u=f_x\frac{X}{Z}+c_x\\v=f_y\frac{Y}{Z}+c_y\end{cases}$
+
+其中，$f$的单位为米，$\alpha$、$\beta$的单位为像素每米，所以$f_x$、$f_y$的单位为像素。把该式写
+成矩阵形式，会更加简洁，不过左侧需要用到齐次坐标：
+
+$\begin{bmatrix}u\\v\\1\end{bmatrix}=\frac{1}{Z}\begin{bmatrix}f_x&0&c_x\\0&f_y&c_y\\0&0&1\end{bmatrix}\begin{bmatrix}X\\Y\\Z\end{bmatrix}\triangleq\frac{1}{Z}KP$
+
+我们按照传统的习惯，把$Z$挪到左侧：
+
+$Z\begin{bmatrix}u\\v\\1\end{bmatrix}=\begin{bmatrix}f_x&0&c_x\\0&f_y&c_y\\0&0&1\end{bmatrix}\begin{bmatrix}X\\Y\\Z\end{bmatrix}\triangleq KP$
+
+该式中，我们把中间的量组成的矩阵称为相机的内参数矩阵（Camera Intrinsics）$K$。通常认为，相机的内参在出厂之后是固定的，不会在使用过程中发生变化。有的相机生产厂商会告诉你相机的内参，而有时需要你自己确定相机的内参，也就是所谓的标定。
+
+除了内参之外，自然还有相对的外参。考虑到在上式中，我们使用的是$P$在相机坐标系下的坐标。由于相机在运动，所以$P$的相机坐标应该是它的世界坐标（记为$P_w$），根据相机的当前位姿，变换到相机坐标系下的结果。相机的位姿由它的旋转矩阵$R$和平移向量$t$来描述。那么有：
+
+$ZP_{uv}=Z\begin{bmatrix}u\\v\\1\end{bmatrix}=K(RP_w+t)=KTP_w$
+
+注意后一个式子隐含了一次齐次坐标到非齐次坐标的转换。它描述了$P$的世界坐标到像素坐标的投影关系。其中，相机的位姿$R$、$t$又称为相机的外参数（Camera Extrinsics）。相比于不变的内参，外参会随着相机运动发生改变，同时也是SLAM中待估计的目标，代表着机器人的轨迹。
+
+上式两侧都是齐次坐标。因为齐次坐标乘上非零常数后表达同样的含义，所以可以简单地把$Z$去掉：
+
+$P_{uv}=KTP_w$
+
+但这样等号意义就变了，成为在齐次坐标下相等的概念，相差了一个非零常数。为了避免麻烦，我们还是从传统意义下来定义书写等号。
+我们还是提一下隐含着的齐次到非齐次的变换吧。可以看到，右侧的$TP_w$表示把一个世界坐标系下的齐次坐标，变换到相机坐标系下。为了使它与$K$相乘，需要取它的前三维组成向量——因为$TP_w$最后一维为1。此时，对于这个三维向量，我们还可以按照齐次坐标的方式，把最后一维进行归一化处理，得到了$P$在相机归一化平面上的投影：
+
+$\tilde{P}_c\begin{bmatrix}X\\Y\\Z\end{bmatrix}=(TP_w)_{(1:3)},\quad P_c=\begin{bmatrix}\frac{X}{Z}\\\frac{Y}{Z}\\1\end{bmatrix}$
+
+这时$P_c$可以看成一个二维的齐次坐标，称为归一化坐标。它位于相机前方$z=1$处的平面上。该平面称为归一化平面。由于$P_c$经过内参之后就得到了像素坐标，所以我们可以把像素坐标$[u,v]^T$，看成对归一化平面上的点进行量化测量的结果。
+
+#### 畸变
+
+为了获得好的成像效果，我们在相机的前方加了透镜。透镜的加入对成像过程中光线的传播会产生新的影响：一是透镜自身的形状对光线传播的影响，二是在机械组装过程中，透镜和成像平面不可能完全平行，这也会使得光线穿过透镜投影到成像面时的位置发生变化。
+
+由透镜形状引起的畸变称之为径向畸变。在针孔模型中，一条直线投影到像素平面上还是一条直线。可是，在实际拍摄的照片中，摄像机的透镜往往使得真实环境中的一条直线在图片中变成了曲线。越靠近图像的边缘，这种现象越明显。由于实际加工制作的透镜往往是中心对称的，这使得不规则的畸变通常径向对称。它们主要分为两大类，桶形畸变和枕形畸变，如下图所示。
+
+<img title="" src="slambook/2025-04-27-22-22-22-image.png" alt="" width="500">
+
+桶形畸变是由于图像放大率随着离光轴的距离增加而减小，而枕形畸变却恰好相反。在这两种畸变中，穿过图像中心和光轴有交点的直线还能保持形状不变。
+
+除了透镜的形状会引入径向畸变外，在相机的组装过程中由于不能使得透镜和成像面严格平行也会引入切向畸变。如下图所示。
+
+<img title="" src="slambook/2025-04-27-22-28-39-image.png" alt="" width="511">
+
+为更好地理解径向畸变和切向畸变，我们用更严格的数学形式对两者进行描述。我们知道平面上的任意一点$p$可以用笛卡尔坐标表示为$[x,y]^T$，也可以把它写成极坐标的形式$[r,\theta]^T$，其中$r$表示点$p$离坐标系原点的距离，$\theta$表示和水平轴的夹角。径向畸变可看成坐标点沿着长度方向发生了变化$\delta r$，也就是其距离原点的长度发生了变化。切向畸变可以看成坐标点沿着切线方向发生了变化，也就是水平夹角发生了变化$\delta\theta$。
+
+对于径向畸变，无论是桶形畸变还是枕形畸变，由于它们都是随着离中心的距离增加而增加。我们可以用一个多项式函数来描述畸变前后的坐标变化：这类畸变可以用和距中心距离有关的二次及高次多项式函数进行纠正：
+
+$x_{corrected}=x(1+k_1r^2+k_2r^4+k_3r^6)$
+
+$y_{corrected}=y(1+k_1r^2+k_2r^4+k_3r^6)$
 
 
 
@@ -398,7 +474,7 @@ int main(int argc, char** argv) {
     double abc[3] = { 0, 0, 0 };            // abc参数的估计值
 
     vector<double> x_data, y_data;      // 数据
-    
+
     cout << "generating data: " << endl;
     for(int i = 0; i < N; i++) {
         double x = i / 100.0;
@@ -408,7 +484,7 @@ int main(int argc, char** argv) {
         );
         cout << x_data[i] << " " << y_data[i] << endl;
     }
-    
+
     // 构建图优化，先设定g2o
     typedef g2o::BlockSolver< g2o::BlockSolverTraits<3, 1> > Block;  // 每个误差项优化变量维度为3，误差值维度为1
     auto linearSolver = std::make_unique<g2o::LinearSolverDense<Block::PoseMatrixType>>(); // 线性方程求解器
@@ -420,13 +496,13 @@ int main(int argc, char** argv) {
     g2o::SparseOptimizer optimizer;     // 图模型
     optimizer.setAlgorithm(solver);   // 设置求解器
     optimizer.setVerbose(true);       // 打开调试输出
-    
+
     // 往图中增加顶点
     CurveFittingVertex* v = new CurveFittingVertex();
     v->setEstimate(Eigen::Vector3d(0, 0, 0));
     v->setId(0);
     optimizer.addVertex(v);
-    
+
     // 往图中增加边
     for(int i = 0; i < N; i++) {
         CurveFittingEdge* edge = new CurveFittingEdge(x_data[i]);
@@ -436,7 +512,7 @@ int main(int argc, char** argv) {
         edge->setInformation(Eigen::Matrix<double, 1, 1>::Identity() * 1 / (w_sigma * w_sigma)); // 信息矩阵：协方差矩阵之逆
         optimizer.addEdge(edge);
     }
-    
+
     // 执行优化
     cout << "start optimization" << endl;
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
@@ -445,11 +521,11 @@ int main(int argc, char** argv) {
     chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
     chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
     cout << "solve time cost = " << time_used.count() << " seconds. " << endl;
-    
+
     // 输出优化值
     Eigen::Vector3d abc_estimate = v->estimate();
     cout << "estimated model: " << abc_estimate.transpose() << endl;
-    
+
     return 0;
 }
 ```
