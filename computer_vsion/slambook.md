@@ -299,6 +299,89 @@ $q=\begin{bmatrix}\cos{\frac{\theta}{2}}&n_x\sin{\frac{\theta}{2}}&n_y\sin{\frac
 
 反之，我们亦可从单位四元数中计算出对应旋转轴与夹角：
 
+$\begin{cases}\theta=2\arccos q_0\\\begin{bmatrix}n_x&n_y&n_z\end{bmatrix}^T\end{cases}=\frac{1}{\sin\frac{\theta}{2}}\begin{bmatrix}q_1&q_2&q_3\end{bmatrix}^T$
+
+这式子给我们一种微妙的"转了一半"的感觉。同样，对$\theta$加上$2\pi$，我们得到一个相同的旋转，但此时对应的四元数变成了$−q$。因此，在四元数中，任意的旋转都可以由两个互为相反数的四元数表示。同理，取$\theta$为$0$，则得到一个没有任何旋转的实四元数：
+
+$q_0=\begin{bmatrix}\pm1&0&0&0\end{bmatrix}^T$
+
+##### 四元数的运算
+
+四元数和通常复数一样，可以进行一系列的运算。常见的有四则运算、数乘、求逆、共轭等等。
+现有两个四元数$q_a$、$q_b$ ，它们的向量表示为$\begin{bmatrix}s_a&v_a\end{bmatrix}$、$\begin{bmatrix}s_b&v_b\end{bmatrix}$，或者原始四元数表示为：
+
+$q_a=s_a+x_ai+y_aj+z_ak,\quad q_b=s_b+x_bi+y_bj+z_bk$
+
+那么，它们的运算可表示如下。
+
+1. 加法和减法
+   
+   四元数$q_a$、$q_b$的加减运算为：
+   
+   $q_a\pm q_b=\begin{bmatrix}s_a\pm s_b&v_a\pm v_b\end{bmatrix}$
+
+2. 乘法
+   
+   乘法是把$q_a$的每一项与$q_b$每项相乘，最后相加。整理可得：
+   
+   $\begin{aligned}q_aq_b=&s_as_b-x_ax_b-y_ay_b-z_az_b\\&+(s_ax_b+x_as_b+y_az_b-z_ay_b)i\\&+(s_ay_b-x_az_b+y_as_-b+z_ax_b)j\\&+(s_az_b+x_ay_b-y_bx_a+z_as_b)k\end{aligned}$
+
+虽然稍为复杂，但形式上是整齐有序的。如果写成向量形式并利用内外积运算，该表达会更加简洁：
+
+$q_aq_b=\begin{bmatrix}s_as_b-v^T_av_b&s_av_b+s_bv_a+v_a\times v_b\end{bmatrix}$
+
+在该乘法定义下，两个实的四元数乘积仍是实的，这与复数也是一致的。然而，注意到，由于最后一项外积的存在，四元数乘法通常是不可交换的，除非$v_a$和$v_b$在$\mathbb R^3$中共线，那么外积项为零。
+
+3. 共轭
+   
+   四元数的共轭是把虚部取成相反数：
+   
+   $q^*_a=s_a-x_ai-y_aj-z_ak=\begin{bmatrix}s_a,-v_a\end{bmatrix}$
+   
+   四元数共轭与自己本身相乘，会得到一个实四元数，其实部为模长的平方：
+   
+   $q^*q=qq^*=\begin{bmatrix}s^2_a+v^Tv&0\end{bmatrix}$
+
+4. 模长
+   
+   四元数的模长定义为：
+   
+   $\Vert q_a\Vert=\sqrt{s^2_a+x^2_a+y^2_a+z^2_a}$
+   
+   可以验证，两个四元数乘积的模即为模的乘积。这保证单位四元数相乘后仍是单位四元数。
+   
+   $\Vert q_aq_b\Vert=\Vert q_a\Vert\Vert q_b\Vert$
+
+5. 逆
+   
+   一个四元数的逆为：
+   
+   $q^{-1}=\frac{q^*}{\Vert q\Vert^2}$
+   
+   按此定义，四元数和自己的逆的乘积为实四元数的$1$：
+   
+   $qq^{-1}=q^{-1}q=1$
+   
+   如果q为单位四元数，逆和共轭就是同一个量。同时，乘积的逆有和矩阵相似的性质：
+   
+   $(q_aq_b)^{-1}=q^{-1}_bq^{-1}_a$
+
+6. 数乘与点乘
+   
+   和向量相似，四元数可以与数相乘：
+   
+   $kq=\begin{bmatrix}ks&kv\end{bmatrix}$
+   
+   点乘是指两个四元数每个位置上的数值分别相乘：
+   
+   $q_a\cdot q_b=s_as_b+x_ax_bi+y_ay_bj+z_az_bk$
+
+##### 用四元数表示旋转
+
+
+
+
+
 ## 相机与图像
 
 ### 相机模型
