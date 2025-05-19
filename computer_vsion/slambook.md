@@ -538,6 +538,99 @@ $R_1R_2\in SO(3),\quad T_1T_2\in SE(3)$
 
 李群是指具有连续（光滑）性质的群。像整数群$\mathbb Z$那样离散的群没有连续性质，所以不是李群。而$SO(n)$和$SE(n)$，它们在实数空间上是连续的。我们能够直观地想象一个刚体能够连续地在空间中运动，所以它们都是李群。由于$SO(3)$和$SE(3)$对于相机姿态估计尤其重要。
 
+#### 李代数的引出
+
+考虑任意旋转矩阵$R$，我们知道它满足：
+
+$RR^T=I$
+
+现在，我们说，$R$是某个相机的旋转，它会随时间连续地变化，即为时间的函数：$R(t)$。由于它仍是旋转矩阵，有：
+
+$R(t)R(t)^T=I$
+
+在等式两边对时间求导，得到：
+
+$\dot R(t)R(t)^T+R(t)\dot R(t)^T=0$
+
+整理得：
+
+$\dot R(t)R(t)^T=-(\dot R(t)R(t)^T)^T$
+
+可以看出$\dot R(t)R(t)^T$是一个反对称矩阵。$^{\wedge}$符号将一个向量变成了反对称矩阵。同理，对于任意反对称矩阵，我们亦能找到一个与之对应的向量。把这个运算用符号$^{\vee}$表示：
+
+$a^{\wedge}=A=\begin{bmatrix}0&-a_3&a_2\\a_3&0&-a_1\\-a_2&a_1&0\end{bmatrix},\quad A^{\vee}=a$
+
+于是，由于$\dot R(t)R(t)^T$是一个反对称矩阵，我们可以找到一个三维向量$\phi(t)\in\mathbb R^3$与之对应。于是有：
+
+$\dot R(t)R(t)^T=\phi(t)^{\wedge}$
+
+等式两边右乘$R(t)$，由于$R$为正交阵，有：
+
+$\dot R(t)=\phi(t)^{\wedge}R(t)=\begin{bmatrix}0&-\phi_3&\phi_2\\\phi_3&0&-\phi_1\\-\phi_2&\phi_1&0\end{bmatrix}R(t)$
+
+可以看到，每对旋转矩阵求一次导数，只需左乘一个$\phi^{\wedge}(t)$矩阵即可。设$t_0=0$，并设此时旋转矩阵为$R(0)=I$。按照导数定义，可以把$R(t)$在$0$附近进行一阶泰勒展开：
+
+$\begin{aligned}R(t)&\approx R(t_0)+\dot R(t_0)(t-t_0)\\&=I+\phi(t_0)^{\wedge}(t)\end{aligned}$
+
+$\phi$反映了$R$的导数性质，故称它在$SO(3)$原点附近的正切空间（TangentSpace）上。同时在$t_0$附近，设$\phi$保持为常数$\phi(t_0)=\phi_0$。那么，有：
+
+$\dot R(t)=\phi(t_0)^{\wedge}R(t)=\phi^{\wedge}_0R(t)$
+
+上式是一个关于$R$的微分方程，而且我们知道初始值$R(0)=I$，解之，得：
+
+$R(t)=\exp(\phi^{\wedge}_0t)$
+
+由于做了一定的假设，所以上式只在$t=0$附近有效。我们看到，旋转矩阵$R$与另一个反对称矩阵$\phi_0$通过指数关系发生了联系。也就是说，当我们知道某个时刻的$R$时，存在一个向量$\phi$，它们满足这个矩阵指数关系。但是矩阵的指数是什么呢？这里我们有两个问题需要澄清：
+
+1. 如果上式成立，那么给定某时刻的$R$，我们就能求得一个$\phi$，它描述了$R$在局部的倒数关系。$\phi$正是对应到$SO(3)$上的李代数$\mathfrak{so}(3)$。
+
+2. 矩阵指数$\exp(\phi^{\wedge})$正是李群和李代数之间的指数/对数映射。
+
+#### 李代数的定义
+
+每个李群都有与之对应的李代数。李代数描述了李群的局部性质。通用的李代数的定义如下：
+
+李代数由一个集合$\mathbb V$，一个数域$\mathbb F$和一个二元运算$[,]$组成。如果它们满足以下几条
+性质，称$(\mathbb V,\mathbb F,[,])$为一个李代数，记作$\mathfrak g$。
+
+1. 封闭性：$\forall X,Y\in\mathbb V,\quad[X,Y]\in\mathbb V$。
+
+2. 双线性：$\forall X,Y,Z\in\mathbb V,\ a,b\in\mathbb F$，有：$[aX+bY,Z]=a[X,Z]+b[Y,Z],\ [Z,aX+bY]=a[Z,X]+b[Z,Y]$。
+
+3. 自反性：$\forall X\in\mathbb V,\quad[X,X]=0$。
+
+4. 雅可比等价：$\forall X,Y,Z\in\mathbb V,\quad[X,[Y,Z]]+[Z,[Y,X]]+[Y,[Z,X]]=0$。
+
+其中二元运算被称为李括号。从表面上来看，李代数所需要的性质还是挺多的。相比于群中的较为简单的二元运算，李括号表达了两个元素的差异。它不要求结合律，而要求元素和自己做李括号之后为零的性质。作为例子，三维向量$\mathbb R^3$上定义的叉积$\times$是一种李括号，因此$\mathfrak g=(\mathbb R^3,\mathbb R,\times)$构成了一个李代数。
+
+#### 李代数$\mathfrak{so}(3)$
+
+之前提到的$\phi$，事实上是一种李代数。$SO(3)$对应的李代数是定义在$\mathbb R^3$上的向量，我们记作$\phi$。根据前面的推导，每个$\phi$都可以生成一个反对称矩阵：
+
+$\Phi=\phi^{\wedge}=\begin{bmatrix}0&-\phi_3&\phi_2\\\phi_3&0&-\phi_1\\-\phi_2&\phi_1&0\end{bmatrix}\in\mathbb R^{3\times3}$
+
+在此定义下，两个向量$\phi_1$、$\phi_2$的李括号为：
+
+$[\phi_1,\phi_2]=(\Phi_1\Phi_2-\Phi_2\Phi_1)^{\vee}$
+
+由于$\phi$与反对称矩阵关系很紧密，在不引起歧义的情况下，就说$\mathfrak{so}(3)$的元素是$3$维向量或者$3$维反对称矩阵，不加区别：
+
+$\mathfrak{so}(3)=\{\phi\in\mathbb R^3,\Phi=\phi^{\wedge}\in\mathbb R^{3\times3}\}$
+
+$\mathfrak{so}(3)$是一个由三维向量组成的集合，每个向量对应到一个反对称矩阵，可以表达旋转矩阵的导数。它与$SO(3)$的关系由指数映射给定：
+
+$R=\exp(\phi^{\wedge})$
+
+#### 李代数$\mathfrak{se}(3)$
+
+对于$SE(3)$，它也有对应的李代数$\mathfrak{se}(3)$。与$\mathfrak{so}(3)$相似，$\mathfrak{se}(3)$位于$\mathbb R^6$空间中：
+
+$\mathfrak{se}(3)=\left\{\xi=\begin{bmatrix}\rho\\\phi\end{bmatrix}\in\mathbb R^6,\rho\in\mathbb R^3,\phi\in\mathfrak{so}(3),\xi^{\wedge}=\begin{bmatrix}\phi^{\wedge}&\rho\\0^T&0\end{bmatrix}\in\mathbb R^{4\times4}\right\}$
+
+
+
+
+
 ## 相机与图像
 
 ### 相机模型
