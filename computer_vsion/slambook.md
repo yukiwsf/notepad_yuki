@@ -639,7 +639,31 @@ $\begin{bmatrix}\xi_1&\xi_2\end{bmatrix}=(\xi^{\wedge}_1\xi^{\wedge}_2-\xi^{\wed
 
 #### SO(3)上的指数映射
 
-$\exp(\phi^{\wedge})$是一个矩阵的指数，在李群和李代数中，称为指数映射（Exponential Map）。
+$\exp(\phi^{\wedge})$是一个矩阵的指数，在李群和李代数中，称为指数映射（Exponential Map）。任意矩阵的指数映射可以写成一个泰勒展开，但是只有在收敛的情况下才会有结果，其结果仍是一个矩阵。
+
+$\exp(A)=\sum\limits^{\infty}_{n=0}\frac{1}{n!}A^n$
+
+同样地，对$\mathfrak{so}(3)$中任意一元素$\phi$，我们亦可按此方式定义它的指数映射：
+
+$\exp(\phi^{\wedge})=\sum\limits^{\infty}_{n=0}\frac{1}{n!}(\phi^{\wedge})^n$
+
+由于$\phi$是三维向量，我们可以定义它的模长和它的方向，分别记作$\theta$和$a$，于是有$\phi=\theta a$。这里$a$是一个长度为$1$的方向向量。首先，对于$a^{\wedge}$，有以下两条性质：
+
+$a^{\wedge}a^{\wedge}=aa^T=I$
+
+以及：
+
+$a^{\wedge}a^{\wedge}a^{\wedge}=-a^{\wedge}$
+
+利用这两个性质，我们可以把指数映射写成：
+
+$\begin{aligned}\exp(\phi^{\wedge})&=\exp(\theta a^{\wedge})=\sum\limits^{\infty}_{n=0}\frac{1}{n!}(\theta a^{\wedge})^n\\&=I+\theta a^{\wedge}+\frac{1}{2!}\theta^2a^{\wedge}a^{\wedge}+\frac{1}{3!}\theta^3a^{\wedge}a^{\wedge}a^{\wedge}+\frac{1}{4!}\theta^4(a^{\wedge})^4+...\\&=aa^T-a^{\wedge}a^{\wedge}+\theta a^{\wedge}+\frac{1}{2!}\theta^2a^{\wedge}a^{\wedge}-\frac{1}{3!}\theta^3a^{\wedge}-\frac{1}{4!}\theta^4(a^{\wedge})^2+...\\&=aa^T+(\theta-\frac{1}{3!}\theta^3+\frac{1}{5!}\theta^5-...)a^{\wedge}-(1-\frac{1}{2!}\theta^2+\frac{1}{4!}\theta^4-...)a^{\wedge}a^{\wedge}\\&=a^{\wedge}a^{\wedge}+I+\sin\theta a^{\wedge}-\cos\theta a^{\wedge}a^{\wedge}\\&=(1-\cos\theta)a^{\wedge}a^{\wedge}+I+\sin\theta a^{\wedge}\\&=\cos\theta I+(1-\cos\theta)aa^T+\sin\theta a^{\wedge}\end{aligned}$
+
+最后我们得到了一个似曾相识的式子：
+
+
+
+
 
 ## 相机与图像
 
