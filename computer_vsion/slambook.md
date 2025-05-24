@@ -705,6 +705,111 @@ $\exp(\phi^{\wedge}_1)\exp(\phi^{\wedge}_2)=\exp((\phi_1+\phi_2)^{\wedge})$
 
 如果$\phi_1$、$\phi_2$为标量，那显然该式成立；但此处我们计算的是矩阵的指数函数，而非标量的指数。换言之，我们在研究下式是否成立：
 
+$\ln(\exp(A)\exp(B))=A+B$
+
+很遗憾，该式在矩阵时并不成立。
+
+两个李代数指数映射乘积的完整形式，由Baker-Campbell-Hausdorff公式（BCH公式）给出。由于它完整的形式较复杂，我们给出它展开式的前几项：
+
+$\ln(\exp(A)\exp(B))=A+B+\frac{1}{2}[A,B]+\frac{1}{12}[A,[A,B]]-\frac{1}{12}[B,[A,B]]+...$
+
+其中$[]$为李括号。BCH公式告诉我们，当处理两个矩阵指数之积时，它们会产生一些由李括号组成的余项。特别地，考虑$SO(3)$上的李代数$\ln(\exp(\phi^{\wedge}_1)\exp(\phi^{\wedge}_2))^{\vee}$，当$\phi_1$或$\phi_2$为小量时，小量二次以上的项都可以被忽略掉。此时，BCH拥有线性近似表达：
+
+$\ln(\exp(\phi^{\wedge}_1)\exp(\phi^{\wedge}_2))^{\vee}\approx\begin{cases}J_l(\phi_2)^{-1}\phi_1+\phi_2,\quad {\rm if\ \phi_1\ is\ small}\\J_r(\phi_1)^{-1}\phi_2+\phi_1,\quad {\rm if\ \phi_2\ is\ small}\end{cases}$
+
+以第一个近似为例。该式告诉我们，当对一个旋转矩阵$R_2$（李代数为$\phi_2$）左乘一个微小旋转矩阵$R_1$（李代数为$\phi_1$）时，可以近似地看作，在原有的李代数$\phi_1$上，加上了一项$J_l(\phi_2)^{-1}\phi_1$。同理，第二个近似描述了右乘一个微小位移的情况。于是，李代数在BCH近似下，分成了左乘近似和右乘近似两种，在使用时我们须加注意，使用的是左乘模型还是右乘模型。
+
+以左乘为例，左乘BCH近似雅可比$J_l$：
+
+$J_l=J=\frac{\sin\theta}{\theta}I+(1-\frac{\sin\theta}{\theta})aa^T+\frac{1-\cos\theta}{\theta}a^{\wedge}$
+
+它的逆为：
+
+$J^{-1}_l=\frac{\theta}{2}\cot\frac{\theta}{2}I+(1-\frac{\theta}{2}\cot\frac{\theta}{2})aa^T-\frac{\theta}{2}a^{\wedge}$
+
+而右乘雅可比仅需要对自变量取负号即可：
+
+$J_r(\phi)=J_l(-\phi)$
+
+这样，我们就可以谈论李群乘法与李代数加法的关系了。
+
+假定对某个旋转$R$，对应的李代数为$\phi$。我们给它左乘一个微小旋转，记作$\Delta R$，对应的李代数为$\Delta\phi$。那么，在李群上，得到的结果就是$\Delta R\cdot R$，而在李代数上，根据BCH近似，为：$J^{-1}_l(\phi)\Delta\phi+\phi$。合并起来，可以简单地写成：
+
+$\exp(\Delta\phi^{\wedge})\exp(\phi^{\wedge})=\exp((\phi+J^{-1}_l(\phi)\Delta\phi)^{\wedge})$
+
+反之，如果我们在李代数上进行加法，让一个$\phi$加上$\Delta\phi$，那么可以近似为李群上带左右雅可比的乘法：
+
+$\exp((\phi+\Delta\phi)^{\wedge})=\exp((J_l\Delta\phi)^{\wedge})\exp(\phi^{\wedge})=\exp(\phi^{\wedge})\exp((J_r\Delta\phi)^{\wedge})$
+
+同样的，对于$SE(3)$，亦有类似的BCH近似公式：
+
+$\exp(\Delta\xi^{\wedge})\exp(\xi^{\wedge})\approx\exp((\mathcal{J}^{-1}_l\Delta\xi+\xi)^{\wedge})$
+
+$\exp(\xi^{\wedge})\exp(\Delta\xi^{\wedge})\approx\exp((\mathcal{J}^{-1}_r\Delta\xi+\xi)^{\wedge})$
+
+这里$J_l$形式比较复杂，它是一个$6\times6$的矩阵。由于我们在计算中不用到该雅可比，故这里略去它的实际形式。
+
+#### $SO(3)$李代数上的求导
+
+在SLAM中，我们要估计一个相机的位置和姿态，该位姿是由$SO(3)$上的旋转矩阵或$SE(3)$上的变换矩阵描述的。不妨设某个时刻小萝卜的位姿为$T$。它观察到了一个世界坐标位于$p$的点，产生了一个观测数据$z$。那么，由坐标变换关系知：
+
+$z=Tp+w$
+
+然而，由于观测噪声$w$的存在，$z$往往不可能精确地满足$z=Tp$的关系。所以，我们通常会计算理想的观测与实际数据的误差：
+
+$e=z-Tp$
+
+假设一共有$N$个这样的路标点和观测，于是就有$N$个上式。那么，对小萝卜的位姿估计，相当于是寻找一个最优的$T$，使得整体误差最小化：
+
+$\min\limits_TJ(T)=\sum\limits^N_{i=1}\Vert z_i-Tp_i\Vert^2_2$
+
+求解此问题，需要计算目标函数$J$关于变换矩阵$T$的导数。我们经常会构建与位姿有关的函数，然后讨论该函数关于位姿的导数，以调整当前的估计值。然而，$SO(3)$、$SE(3)$上并没有良好定义的加法，它们只是群。如果我们把$T$当成一个普通矩阵来处理优化，那就必须对它加以约束。而从李代数角度来说，由于李代数由向量组成，具有良好的加法运算。因此，使用李代数解决求导问题的思路分为两种：
+
+1. 用李代数表示姿态，然后对根据李代数加法来对李代数求导。
+2. 对李群左乘或右乘微小扰动，然后对该扰动求导，称为左扰动和右扰动模型。
+
+第一种方式对应到李代数的求导模型，而第二种则对应到扰动模型。
+
+#### 李代数求导
+
+首先，考虑$SO(3)$上的情况。假设我们对一个空间点$p$进行了旋转，得到了$Rp$。现在，要计算旋转之后点的坐标相对于旋转的导数，我们不严谨地记为：
+
+$\frac{\partial(Rp)}{\partial R}$
+
+由于$SO(3)$没有加法，所以该导数无法按照导数的定义进行计算。设$R$对应的李代数为$\phi$，我们转而计算：
+
+$\frac{\partial(\exp(\phi^{\wedge})p)}{\partial\phi}$
+
+按照导数的定义，有：
+
+$\begin{aligned}\frac{\partial(\exp(\phi^{\wedge})p)}{\partial\phi}&=\lim_{\delta\phi\to0}\frac{\exp((\phi+\delta\phi)^{\wedge})p-\exp(\phi^{\wedge})p}{\delta\phi}\\&=\lim_{\delta\phi\to0}\frac{\exp((J_l\delta\phi)^{\wedge})\exp(\phi^{\wedge})p-\exp(\phi^{\wedge})p}{\delta\phi}\\&\approx\lim_{\delta\phi\to0}\frac{(I+(J_l\delta\phi)^{\wedge})\exp(\phi^{\wedge})p-\exp(\phi^{\wedge})p}{\delta\phi}\\&=\lim_{\delta\phi\to0}\frac{(J_l\delta\phi)^{\wedge}\exp(\phi^{\wedge})p}{\delta\phi}\\&=\lim_{\delta\phi\to0}\frac{-(\exp(\phi^{\wedge})p)^{\wedge}J_l\delta\phi}{\delta\phi}\\&=(Rp)^{\wedge}J_l\end{aligned}$
+
+第二行的近似为BCH线性近似，第三行为泰勒展开舍去高阶项后近似，第四行至第五行将反对称符号看作叉积，交换之后变号。于是，我们推导了旋转后的点相对于李代数的导数。
+
+不过，由于这里仍然含有形式比较复杂的$J_l$，我们不太希望计算它。
+
+#### 扰动模型（左乘）
+
+另一种更简单的求导方式，是对$R$进行一次扰动$\Delta R$。这个扰动可以乘在左边也可以乘在右边，最后结果会有一点微小的差异，我们以左扰动为例。设左扰动$\Delta R$对应的李代数为$\varphi$。然后，对$\varphi$求导，即：
+
+$\begin{aligned}\frac{\partial(Rp)}{\partial\varphi}&=\lim_{\varphi\to0}\frac{\exp(\varphi^{\wedge})\exp(\phi^{\wedge})p-\exp(\phi^{\wedge})p}{\varphi}\\&\approx\lim_{\varphi\to0}\frac{\exp(1+\varphi^{\wedge})\exp(\phi^{\wedge})p-\exp(\phi^{\wedge})p}{\varphi}\\&=\lim_{\varphi\to0}\frac{\varphi^{\wedge}Rp}{\varphi}\\&=\lim_{\varphi\to0}\frac{-(Rp)^{\wedge}\varphi}{\varphi}\\&=-(Rp)^{\wedge}\end{aligned}$
+
+可见，扰动模型相比于直接对李代数求导，省去了一个雅可比$J_l$的计算。这使得扰动模型更为实用。
+
+#### $SE(3)$上的李代数求导
+
+最后，我们给出$SE(3)$上的扰动模型，而直接李代数上的求导就不再介绍了。假设某空间点$p$经过一次变换$T$（对应李代数为$\xi$），得到$Tp$。现在，给$T$左乘一个扰动$\Delta T=\exp(\delta\xi^{\wedge})$，我们设扰动项的李代数为$\delta\xi=[\delta\rho,\delta\phi]^T$，那么：
+
+$\begin{aligned}\frac{\partial(Tp)}{\partial\delta\xi}&=\lim_{\delta\xi\to0}\frac{\exp(\delta\xi^{\wedge})\exp(\xi^{\wedge})p-\exp(\xi^{\wedge})p}{\delta\xi}\\&\approx\lim_{\delta\xi\to0}\frac{(I+\delta\xi^{\wedge})\exp(\xi^{\wedge})p-\exp(\xi^{\wedge})p}{\delta\xi}\\&=\lim_{\delta\xi\to0}\frac{\delta\xi^{\wedge}\exp(\xi^{\wedge})p}{\delta\xi}\\&=\lim_{\delta\xi\to0}\frac{\begin{bmatrix}\delta\phi^{\wedge}&\delta\rho\\0^T&0\end{bmatrix}\begin{bmatrix}Rp+t\\1\end{bmatrix}}{\delta\xi}\\&=\lim_{\delta\xi\to0}\frac{\begin{bmatrix}\delta\phi^{\wedge}(Rp+t)+\delta\rho\\0\end{bmatrix}}{\delta\xi}\\&=\begin{bmatrix}I&-(Rp+t)^{\wedge}\\0^T&0^T\end{bmatrix}\\&\triangleq(Tp)^{\odot}\end{aligned}$
+
+我们把最后的结果定义成一个算符$^{\odot}$­，它把一个齐次坐标的空间点变换成一个$4\times6$的矩阵。
+
+### Sophus
+
+Eigen提供了几何模块，但没有提供李代数的支持。一个较好的李代数库是Strasdat维护的Sophus库。Sophus库支持本章主要讨论的$SO(3)$和$SE(3)$，此外还含有二维运动$SO(2)$、$SE(2)$以及相似变换$Sim(3)$的内容。它是直接在Eigen基础上开发的，我们不需要要安装额外的依赖库。
+
+### 相似变换群与李代数
+
 
 
 ## 相机与图像
@@ -1144,77 +1249,7 @@ $\min\limits_x\frac{1}{2}\sum\limits_i\rho_i(\Vert f_i(x_{i_1},x_{i_1})\Vert^2),
 
 可以看到，目标函数由许多平方项，经过一个核函数$\rho(\cdot)$之后，求和组成。在最简单的情况下，取$\rho$为恒等函数，则目标函数即为许多项的平方和。在这个问题中，优化变量为$x_1,...,x_n$，$f_i$称为代价函数（Cost function），在SLAM中亦可理解为误差项。$l_j$和$u_j$为第$j$个优化变量的上限和下限。在最简单的情况下，取$l_j=-\infty,u_j=\infty$（不限制优化变量的边界），并且取$\rho$为恒等函数时，就得到了无约束的最小二乘问题。
 
-在Ceres中，我们将定义优化变量$x$和每个代价函数$f_i$，再调用Ceres进行求解。我们可以选择使用G-N或者L-M进行梯度下降，并设定梯度下降的条件，Ceres会在优化之后，将最优估计值返回给我们。下面，我们通过一个曲线拟合的实验，来实际操作一下Ceres，理解优化的过程。
-
-```cpp
-#include <iostream>
-#include <opencv2/core/core.hpp>
-#include <ceres/ceres.h>
-#include <chrono>
-
-using namespace std;
-
-// 代价函数的计算模型
-struct CURVE_FITTING_COST {
-    CURVE_FITTING_COST(double x, double y) : _x(x), _y(y) {}
-    // 残差的计算
-    template <typename T>
-    bool operator() (
-        const T* const abc,  // 模型参数, 有3维
-        T* residual  // 残差
-    ) const {
-        residual[0] = T(_y) - ceres::exp (abc[0] * T(_x) * T(_x) + abc[1] * T(_x) + abc[2]);  // y-exp(ax^2+bx+c)
-        return true;
-    }
-    const double _x, _y;    // x, y数据
-};
-
-int main(int argc, char** argv) {
-    double a = 1.0, b = 2.0, c = 1.0;  // 真实参数值
-    int N = 100;  // 数据点
-    double w_sigma = 1.0;  // 噪声Sigma值
-    cv::RNG rng;  // OpenCV随机数产生器
-    double abc[3] = { 0, 0, 0 };  // abc参数的估计值
-    vector<double> x_data, y_data;  // 数据
-    cout << "generating data: " << endl;
-    for(int i = 0; i < N; i++) {
-        double x = i / 100.0;
-        x_data.push_back(x);
-        y_data.push_back(
-            exp(a * x * x + b * x + c) + rng.gaussian(w_sigma)
-        );
-        cout << x_data[i] << " " << y_data[i] << endl;
-    }
-    // 构建最小二乘问题
-    ceres::Problem problem;
-    for(int i = 0; i < N; i++) {
-        problem.AddResidualBlock (  // 向问题中添加误差项
-        // 使用自动求导, 模板参数: 误差类型, 输出维度, 输入维度, 维数要与前面struct中一致
-            new ceres::AutoDiffCostFunction<CURVE_FITTING_COST, 1, 3>( 
-                new CURVE_FITTING_COST(x_data[i], y_data[i])
-            ),
-            nullptr,  // 核函数, 这里不使用, 为空
-            abc  // 待估计参数
-        );
-    }
-    // 配置求解器
-    ceres::Solver::Options options;  // 这里有很多配置项可以填
-    options.linear_solver_type = ceres::DENSE_QR;  // 增量方程如何求解
-    options.minimizer_progress_to_stdout = true;  // 输出到cout
-    ceres::Solver::Summary summary;  // 优化信息
-    chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
-    ceres::Solve (options, &problem, &summary);  // 开始优化
-    chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
-    chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
-    cout << "solve time cost = " << time_used.count() << " seconds. " << endl;
-    // 输出结果
-    cout << summary.BriefReport() << endl;
-    cout << "estimated a,b,c = ";
-    for(auto a : abc) cout << a << " ";
-    cout << endl;
-    return 0;
-}
-```
+在Ceres中，我们将定义优化变量$x$和每个代价函数$f_i$，再调用Ceres进行求解。我们可以选择使用G-N或者L-M进行梯度下降，并设定梯度下降的条件，Ceres会在优化之后，将最优估计值返回给我们。
 
 ### g2o
 
@@ -1237,118 +1272,6 @@ g2o为SLAM提供了图优化所需的内容。下面我们来演示一下g2o的�
 2. 构建图；
 3. 选择优化算法；
 4. 调用g2o进行优化，返回结果。
-
-```cpp
-#include <iostream>
-#include <g2o/core/base_vertex.h>
-#include <g2o/core/base_unary_edge.h>
-#include <g2o/core/block_solver.h>
-#include <g2o/core/optimization_algorithm_levenberg.h>
-#include <g2o/core/optimization_algorithm_gauss_newton.h>
-#include <g2o/core/optimization_algorithm_dogleg.h>
-#include <g2o/solvers/dense/linear_solver_dense.h>
-#include <Eigen/Core>
-#include <opencv2/core/core.hpp>
-#include <cmath>
-#include <memory>
-#include <chrono>
-using namespace std; 
-
-// 曲线模型的顶点, 模板参数: 优化变量维度和数据类型
-class CurveFittingVertex : public g2o::BaseVertex<3, Eigen::Vector3d> {
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    virtual void setToOriginImpl() {  // 重置
-        _estimate << 0, 0, 0;
-    }
-    virtual void oplusImpl(const double* update) {  // 更新
-        _estimate += Eigen::Vector3d(update);
-    }
-    // 存盘和读盘: 留空
-    virtual bool read(istream& in) {}
-    virtual bool write(ostream& out) const {}
-};
-
-// 误差模型 模板参数: 观测值维度, 类型, 连接顶点类型
-class CurveFittingEdge : public g2o::BaseUnaryEdge<1, double, CurveFittingVertex> {
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    CurveFittingEdge(double x): BaseUnaryEdge(), _x(x) {}
-    // 计算曲线模型误差
-    void computeError() {
-        const CurveFittingVertex* v = static_cast<const CurveFittingVertex*>(_vertices[0]);
-        const Eigen::Vector3d abc = v->estimate();
-        _error(0, 0) = _measurement - std::exp(abc(0, 0) * _x * _x + abc(1, 0) * _x + abc(2, 0));
-    }
-    virtual bool read(istream& in) {}
-    virtual bool write(ostream& out) const {}
-public:
-    double _x;  // x值, y值为 _measurement
-};
-
-int main(int argc, char** argv) {
-    double a = 1.0, b = 2.0, c = 1.0;         // 真实参数值
-    int N = 100;                          // 数据点
-    double w_sigma = 1.0;                 // 噪声Sigma值
-    cv::RNG rng;                        // OpenCV随机数产生器
-    double abc[3] = { 0, 0, 0 };            // abc参数的估计值
-
-    vector<double> x_data, y_data;      // 数据
-
-    cout << "generating data: " << endl;
-    for(int i = 0; i < N; i++) {
-        double x = i / 100.0;
-        x_data.push_back(x);
-        y_data.push_back (
-            exp(a * x * x + b * x + c) + rng.gaussian(w_sigma)
-        );
-        cout << x_data[i] << " " << y_data[i] << endl;
-    }
-
-    // 构建图优化，先设定g2o
-    typedef g2o::BlockSolver< g2o::BlockSolverTraits<3, 1> > Block;  // 每个误差项优化变量维度为3，误差值维度为1
-    auto linearSolver = std::make_unique<g2o::LinearSolverDense<Block::PoseMatrixType>>(); // 线性方程求解器
-    auto solver_ptr = std::make_unique<Block>(std::move(linearSolver));      // 矩阵块求解器
-    // 梯度下降方法，从GN, LM, DogLeg 中选
-    g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(std::move(solver_ptr));
-    // g2o::OptimizationAlgorithmGaussNewton* solver = new g2o::OptimizationAlgorithmGaussNewton( solver_ptr );
-    // g2o::OptimizationAlgorithmDogleg* solver = new g2o::OptimizationAlgorithmDogleg( solver_ptr );
-    g2o::SparseOptimizer optimizer;     // 图模型
-    optimizer.setAlgorithm(solver);   // 设置求解器
-    optimizer.setVerbose(true);       // 打开调试输出
-
-    // 往图中增加顶点
-    CurveFittingVertex* v = new CurveFittingVertex();
-    v->setEstimate(Eigen::Vector3d(0, 0, 0));
-    v->setId(0);
-    optimizer.addVertex(v);
-
-    // 往图中增加边
-    for(int i = 0; i < N; i++) {
-        CurveFittingEdge* edge = new CurveFittingEdge(x_data[i]);
-        edge->setId(i);
-        edge->setVertex(0, v);                // 设置连接的顶点
-        edge->setMeasurement(y_data[i]);      // 观测数值
-        edge->setInformation(Eigen::Matrix<double, 1, 1>::Identity() * 1 / (w_sigma * w_sigma)); // 信息矩阵：协方差矩阵之逆
-        optimizer.addEdge(edge);
-    }
-
-    // 执行优化
-    cout << "start optimization" << endl;
-    chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
-    optimizer.initializeOptimization();
-    optimizer.optimize(100);
-    chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
-    chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
-    cout << "solve time cost = " << time_used.count() << " seconds. " << endl;
-
-    // 输出优化值
-    Eigen::Vector3d abc_estimate = v->estimate();
-    cout << "estimated model: " << abc_estimate.transpose() << endl;
-
-    return 0;
-}
-```
 
 ## 视觉里程计
 
@@ -2062,51 +1985,7 @@ $\frac{\partial e}{\partial\delta\xi}=-(\exp(\xi^{\wedge})p'_i)^{\odot}$
 
 SVD方法求解ICP：`Eigen::JacobiSVD`。
 
-非线性优化方法求解ICP：
-
-```cpp
-// g2o edge
-class EdgeProjectXYZRGBDPoseOnly : public g2o::BaseUnaryEdge<3, Eigen::Vector3d, g2o::VertexSE3Expmap> {
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-    EdgeProjectXYZRGBDPoseOnly(const Eigen::Vector3d& point) : _point(point) {}
-    virtual void computeError() {
-        const g2o::VertexSE3Expmap* pose = static_cast<const g2o::VertexSE3Expmap*>(_vertices[0]);
-        // measurement is p, point is p'
-        _error = _measurement - pose->estimate().map(_point);
-    }
-    virtual void linearizeOplus() {
-        g2o::VertexSE3Expmap* pose = static_cast<g2o::VertexSE3Expmap *>(_vertices[0]);
-        g2o::SE3Quat T(pose->estimate());
-        Eigen::Vector3d xyz_trans = T.map(_point);
-        double x = xyz_trans[0];
-        double y = xyz_trans[1];
-        double z = xyz_trans[2];
-        _jacobianOplusXi(0,0) = 0;
-        _jacobianOplusXi(0,1) = -z;
-        _jacobianOplusXi(0,2) = y;
-        _jacobianOplusXi(0,3) = -1;
-        _jacobianOplusXi(0,4) = 0;
-        _jacobianOplusXi(0,5) = 0;
-        _jacobianOplusXi(1,0) = z;
-        _jacobianOplusXi(1,1) = 0;
-        _jacobianOplusXi(1,2) = -x;
-        _jacobianOplusXi(1,3) = 0;
-        _jacobianOplusXi(1,4) = -1;
-        _jacobianOplusXi(1,5) = 0;
-        _jacobianOplusXi(2,0) = -y;
-        _jacobianOplusXi(2,1) = x;
-        _jacobianOplusXi(2,2) = 0;
-        _jacobianOplusXi(2,3) = 0;
-        _jacobianOplusXi(2,4) = 0;
-        _jacobianOplusXi(2,5) = -1;
-    }
-    bool read(istream& in) {}
-    bool write(ostream& out) const {}
-protected:
-    Eigen::Vector3d _point;
-}; 
-```
+非线性优化方法求解ICP：`g2o::BaseUnaryEdge`。
 
 ## 后端
 
