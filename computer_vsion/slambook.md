@@ -1421,7 +1421,7 @@ $J=-\frac{\partial I_2}{\partial u}\frac{\partial u}{\partial\delta\xi}$
 
 灰度不变假设：同一个空间点的像素灰度值，在各个图像中是固定不变的。 
 
-对于t时刻位于$(x,y)$处的像素，我们设t+dt时刻，它运动到$(x+{\rm d}x,y+{\rm d}y)$处。由于灰度不变，我们有：
+对于$t$时刻位于$(x,y)$处的像素，我们设$t+dt$时刻，它运动到$(x+{\rm d}x,y+{\rm d}y)$处。由于灰度不变，我们有：
 
 $I(x+{\rm d}x,y+{\rm d}y,t+{\rm d}t)=I(x,y,t)$
 
