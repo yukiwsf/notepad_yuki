@@ -32,7 +32,7 @@ VO能够通过相邻帧间的图像估计相机运动，并恢复场景的空间
 
 现在，假定我们已有了一个视觉里程计，估计了两张图像间的相机运动。那么，只要把相邻时刻的运动串起来，就构成了机器人的运动轨迹，从而解决了定位问题。另一方面，我们根据每个时刻的相机位置，计算出各像素对应的空间点的位置，就得到了地图。
 
-我们说，视觉里程计确实是SLAM 的关键问题，我们也会花大量的篇幅来介绍它。然
+我们说，视觉里程计确实是SLAM的关键问题，我们也会花大量的篇幅来介绍它。然
 而，仅通过视觉里程计来估计轨迹，将不可避免地出现累计漂移（Accumulating Drift）。这
 是由于视觉里程计（在最简单的情况下）只估计两个图像间运动造成的。每次估计都带有一定的误差，而由于里程计的工作方式，先前时刻的误差将会传递到下一时刻，导致经过一段时间之后，估计的轨迹将不再准确。比方说，机器人先向左转90度，再向右转了90度。由于误差，我们把第一个90度估计成了89度。那我们就会尴尬地发现，向右转之后机器人的估计位置并没有回到原点。更糟糕的是，即使之后的估计再准确，与真实值相比，都会带上这-1度的误差。
 
@@ -810,7 +810,36 @@ Eigen提供了几何模块，但没有提供李代数的支持。一个较好的
 
 ### 相似变换群与李代数
 
+如果在单目SLAM中使用$SE(3)$表示位姿，那么由于尺度不确定性与尺度漂移，整个SLAM过程中的尺度会发生变化，这在$SE(3)$中未能体现出来。因此，在单目情况下我们一般会显式地把尺度因子表达出来。用数学语言来说，对于位于空间的点$p$，在相机坐标系下要经过一个相似变换，而非欧氏变换：
 
+$p'=\begin{bmatrix}sR&t\\0^T&1\end{bmatrix}p=sRp+t$
+
+在相似变换中，我们把尺度$s$表达了出来。它同时作用在$p$的三个坐标之上，对$p$进行了一
+次缩放。与$SO(3)$、$SE(3)$相似，相似变换亦对矩阵乘法构成群，称为相似变换群$Sim(3)$：
+
+$Sim(3)=\left\{S=\begin{bmatrix}sR&t\\0^T&1\end{bmatrix}\in\mathbb R^{4\times4}\right\}$
+
+同样地，$Sim(3)$也有对应的李代数、指数映射、对数映射等等。李代数$\mathfrak{sim}(3)$元素是一个七维向量$\zeta$。它的前六维与$\mathfrak{se}(3)$相同，最后多了一项$\sigma$。
+
+$\mathfrak{sim}(3)=\left\{\zeta\middle|\zeta=\begin{bmatrix}\rho\\\phi\\\sigma\end{bmatrix}\in\mathbb R^7,\zeta^{\wedge}=\begin{bmatrix}\sigma I+\phi^{\wedge}&\rho\\0^T&0\end{bmatrix}\in\mathbb R^{4\times4}\right\}$
+
+关联$Sim(3)$和$\mathfrak{sim}(3)$的仍是指数映射和对数映射。指数映射为：
+
+$\exp(\zeta^{\wedge})=\begin{bmatrix}e^{\sigma}\exp(\phi^{\wedge})&J_s\rho\\0^T&1\end{bmatrix}$
+
+其中$J_s$形式为：
+
+$J_s=\frac{e^{\sigma}-1}{\sigma}I+\frac{\sigma e^{\sigma}\sin\theta+(1-e^{\sigma}\cos\theta)\theta}{\sigma^2+\theta^2}a^{\wedge}+(\frac{e^{\sigma}-1}{\sigma}-\frac{(e^{\sigma}\cos\theta-1)\sigma+(e^{\sigma\sin\theta}\theta)}{\sigma^2+\theta^2})a^{\wedge}a^{\wedge}$
+
+通过指数映射，我们能够找到李代数与李群的关系。对于李代数元素$\zeta$，它与李群的对应关系为：
+
+$s=e^{\sigma},\quad R=\exp(\phi^{\wedge}),\quad t=J_s\rho$
+
+旋转部分和$SO(3)$是一致的。平移部分，在$\mathfrak{se}(3)$中需要乘一个雅可比$\mathcal J$，而相似变换更复杂一些。对于尺度因子，可以看到李群中的$s$即为李代数中$\sigma$的指数函数。
+
+$Sim(3)$的BCH近似与$SE(3)$是类似的。我们可以讨论一个点$p$经过相似变换$Sp$后，相对于$\zeta$的导数。同样的，存在微分模型和扰动模型两种方式，而扰动模型较为简单。我们省略推导过程，直接给出扰动模型的结果。设给予$Sp$左侧一个小扰动$\exp(\zeta^{\wedge})$，并求$Sp$对于扰动的导数。因为$Sp$四维的齐次坐标，$\zeta$是七维向量，该导数应该是$4\times7$的雅可比。为了方便起见，记$Sp$的前三维组成向量$q$，那么：
+
+$\frac{\partial(Sp)}{\partial\zeta}=\begin{bmatrix}I&-q^{\wedge}&q\\0^T&0^T&0\end{bmatrix}$
 
 ## 相机与图像
 
