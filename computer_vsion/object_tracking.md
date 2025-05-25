@@ -76,7 +76,7 @@
 
 把深度学习模型提取到的目标特征，直接应用到经典或者核相关的滤波跟踪框架里面，从而得到更好的跟踪结果（DeepSORT、DeepSRDCF等）。在大量训练数据的前提下，深度学习模型输出的特征表达要优于经典滤波器与传统特征描述子，但同时也带来了更大的计算量。
 
-<img src="file:///C:/Users/Yuki/Documents/notepad_yuki/computer_vsion/object_tracking/GetImage.jpg" title="" alt="" width="503">
+<img src="object_tracking/GetImage.jpg" title="" alt="" width="503">
 
 ## 评价指标
 
