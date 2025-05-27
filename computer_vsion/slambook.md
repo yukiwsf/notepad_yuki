@@ -2254,7 +2254,7 @@ $\frac{1}{2}\sum\limits^m_{i=1}\sum\limits^m_{j=1}\Vert e_{ij}\Vert^2=\frac{1}{2
 
 观察观测模型$h$，很容易判断该函数不是线性函数。所以我们希望一些非线性优化手段来优化它。根据非线性优化的思想，我们应该从某个的初始值开始，不断地寻找下降方向$\Delta{x}$来找到目标函数的最优解。尽管误差项都是针对单个位姿和路标点的，但在整体BA目标函数上，我们必须把自变量定义成所有待优化的变量：
 
-$x=\begin{bmatrix}\xi_1&...&\xi_m&p_1&...&p_n\end{bmatrix}^T$
+$x=\begin{bmatrix}\xi_1&\cdots&\xi_m&p_1&\cdots&p_n\end{bmatrix}^T$
 
 相应的，增量方程中的$\Delta{x}$则是对整体自变量的增量。在这个意义下，当我们给自变量一个增量时，目标函数变为：
 
@@ -2262,7 +2262,7 @@ $\frac{1}{2}\Vert f(x+\Delta x)\Vert^2\approx\frac{1}{2}\Vert e_{ij}+F_{ij}\Delt
 
 其中$F_{ij}$表示整个代价函数在当前状态下对相机姿态的偏导数，而$E_{ij}$表示该函数对路标点位置的偏导。现在，把相机位姿变量放在一起：
 
-$x_c=\begin{bmatrix}\xi_1&\xi_2&...&\xi_m\end{bmatrix}^T\in\mathbb R$
+$x_c=\begin{bmatrix}\xi_1&\xi_2&\cdots&\xi_m\end{bmatrix}^T\in\mathbb R$
 
 并把空间点的变量也放在一起：
 
@@ -2292,7 +2292,7 @@ $H=J^TJ=\begin{bmatrix} F^TF&F^TE\\E^TF&E^TE\end{bmatrix}$
 
 $H$矩阵的稀疏性是由雅可比$J(x)$引起的。考虑这些代价函数当中的其中一个$e_{ij}$。注意到，这个误差项只描述了在$\xi_i$看到$p_j$这件事，只涉及到第$i$个相机位姿和第$j$个路标点，对其余部分的变量的导数都为$0$。所以该误差项对应的雅可比矩阵有下面的形式：
 
-$J_{ij}(x)=\begin{bmatrix}0_{2\times 6}&...&0_{2\times 6}&\frac{\partial e_{ij}}{\partial\xi_i}&0_{2\times 3}&...&0_{2\times 3}&\frac{\partial e_{ij}}{\partial p_j}&0_{2\times 3}&...&0_{2\times 3}\end{bmatrix}$
+$J_{ij}(x)=\begin{bmatrix}0_{2\times 6}&\cdots&0_{2\times 6}&\frac{\partial e_{ij}}{\partial\xi_i}&0_{2\times 3}&\cdots&0_{2\times 3}&\frac{\partial e_{ij}}{\partial p_j}&0_{2\times 3}&\cdots&0_{2\times 3}\end{bmatrix}$
 
 其中$0_{2\times6}$表示维度为2×6的0矩阵，同理$0_{2\times3}$也是一样。该误差项对相机姿态的偏导$\frac{\partial{e_{ij}}}{\partial{\xi_{i}}}$的维度为$2\times6$，对路标点的偏导$\frac{\partial{e_{ij}}}{\partial{p_j}}$维度是$2\times3$。这个误差项的雅可比矩阵，除了这两处为非零块之外，其余地方都为零。这体现了该误差项与其它路标和轨迹无关的特性。那么，它对增量方程有何影响呢？$H$矩阵为什么会产生稀疏性呢？
 
@@ -2320,7 +2320,7 @@ $H=\begin{bmatrix}H_{11}&H_{12}\\H_{21}&H_{22}\end{bmatrix}$
 
 $\frac{1}{2}(\Vert e_{11}\Vert^2+\Vert e_{12}\Vert^2+\Vert e_{13}\Vert^2+\Vert e_{14}\Vert^2+\Vert e_{23}\Vert^2+\Vert e_{24}\Vert^2+\Vert e_{25}\Vert^2+\Vert e_{26}\Vert^2)$
 
-以$e_{11}$为例，它描述了在$C_1$看到了$P_1$这件事，与其它的相机位姿和路标无关。令$J_{11}$为$e_{11}$所对应的雅可比矩阵，不难看出$e_{11}$对相机变量$\xi_2$和路标点$p_2,...,p_6$的偏导都为$0$。我们把所有变量以$x=\begin{bmatrix}\xi_1&\xi_2&p_1&...&p_2\end{bmatrix}^T$的顺序摆放，则有：
+以$e_{11}$为例，它描述了在$C_1$看到了$P_1$这件事，与其它的相机位姿和路标无关。令$J_{11}$为$e_{11}$所对应的雅可比矩阵，不难看出$e_{11}$对相机变量$\xi_2$和路标点$p_2,...,p_6$的偏导都为$0$。我们把所有变量以$x=\begin{bmatrix}\xi_1&\xi_2&p_1&\cdots&p_2\end{bmatrix}^T$的顺序摆放，则有：
 
 为了方便表示稀疏性，我们用带有颜色的方块表示矩阵在该方块内有数值，其余没有颜色的区域表示矩阵在该处数值都为$0$。那么上面的$J_{11}$则可以表示成如下图案。同理，其它的雅可比矩阵也会有类似的稀疏图案。
 

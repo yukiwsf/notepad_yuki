@@ -144,8 +144,101 @@ ID_SW（ID Switch）：发生ID切换的次数，匹配错误的ground truth - b
 
 Kernelized Correlation Filters：基于核相关的目标跟踪滤波算法。
 
-KCF是一种机器学习鉴别式的跟踪方法，核心思想： 利用第$i$帧的图像$I_i$和目标位置$P_i$初始化滤波器（回归器，Ridge Regression），利用第$i+1$帧的图像$I_{i+1}$作为滤波器的输入，计算第$I_{i+1}$帧图像中响应（相关性）最大的位置$P_{i+1}$（在目标位置$P_i$附近采样，预测每个采样位置的响应值，取响应值最大的采样位置作为$P_{i+1}$）。 
+KCF是一种机器学习鉴别式的跟踪方法，核心思想： 利用第$i$帧的图像$I_i$和目标位置$P_i$初始化滤波器（回归器），利用第$i+1$帧的图像$I_{i+1}$作为滤波器的输入，计算第$I_{i+1}$帧图像中响应（相关性）最大的位置$P_{i+1}$（在目标位置$P_i$附近采样，预测每个采样位置的响应值，取响应值最大的采样位置作为$P_{i+1}$）。 
 
 核心函数包含init函数（利用第一帧的原图像和目标框初始化跟踪器）和update函数（利用后续帧的原图像进行预测）。
 
-KCF中，每个的采样样本$X$均由目标样本$x$循环位移得到（$x$是目标位置的roi区域），将这个过程表示为$X=C(x)$。例如，左乘循环矩阵P后，x的的所有列向量向右循环移动
+### 循环位移与循环矩阵
+
+KCF中，每个的采样样本$X$均由目标样本$x$循环位移得到（$x$是目标位置的roi区域），将这个过程表示为$X=C(x)$。
+
+例如，左乘循环矩阵$P$后，$x$的所有列向量向右循环移动：
+
+$P=\begin{bmatrix}0&0&0&\cdots&1\\1&0&0&\cdots&0\\0&1&0&\cdots&0\\\vdots&\vdots&\ddots&\ddots&\vdots\\0&0&\cdots&1&0\end{bmatrix}$
+
+令$Q=P^T$，右乘$Q$后，$x$的所有列向量向下循环移动：
+
+$P=\begin{bmatrix}0&1&\cdots&0&0\\0&0&\cdots&0&0\\\vdots&\vdots&\ddots&\vdots&\vdots\\0&0&\cdots&0&1\\1&0&\cdots&0&0\end{bmatrix}$
+
+```python
+x = np.array([[1, 11, 111], 
+              [2, 22, 222], 
+              [3, 33, 333]]) 
+P = np.array([[0, 0, 1], 
+              [1, 0, 0], 
+              [0, 1, 0]]) 
+Q = np.array([[0, 1, 0], 
+              [0, 0, 1], 
+              [1, 0, 0]]) 
+Px = np.matmul(P, x) 
+xQ = np.matmul(x, Q) 
+print(np.transpose(Px, (1, 0))) 
+```
+
+循环位移后的采样样本：
+
+<img title="" src="object_tracking/2025-05-26-13-25-00-GetImage.png" alt="" width="371">
+
+### 岭回归
+
+KCF采用岭回归（Ridge Regression）的方法，训练的目标是找到一个函数$f(z)=w^Tz$最小化样本$x_i$与其回归目标$y_i$的误差平方和。公式表示为：
+
+$L=\min\limits_w\sum\limits_i(f(x_i)-y_i)^2+\lambda\Vert w\Vert^2$
+
+其中，$\lambda$是正则化参数。
+
+在傅里叶域中，当损失函数的值$L$为$0$时，求解$w$：
+
+$w=(X^HX+\lambda I)^{-1}X^Hy$
+
+根据循环矩阵能通过离散傅里叶变换（DFT，Discrete Fourier Transform）对角化，使得矩阵求逆转换为特征值求逆的性质，将$w$的求解转换到傅里叶域，应用DFT提高计算速度，从而求得响应最大的解。
+
+循环矩阵$X$可以通过DFT对角化：
+
+$X=F{\rm diag}(\hat x)F^H$
+
+其中，$\hat x$是由$x$经过DFT得到，$\hat x=\mathcal F(x)$，$F$是DFT矩阵（常量矩阵，与$x$无关），$\mathcal F(z)=\sqrt{n}Fz$。
+
+于是：
+
+$\begin{aligned}X^HX&=F{\rm diag(\hat x^*)}F^HF{\rm diag(\hat x)}F^H\\&=F{\rm diag(\hat x^*)}{\rm diag(\hat x)}F^H\\&=F{\rm diag(\hat x^*\odot\hat x)}F^H\end{aligned}$
+
+代入得：
+
+$\begin{aligned}w&=(X^HX+\lambda I)^{-1}X^Hy\\&=(F{\rm diag}(\hat x^*\odot\hat x)F^H+F{\rm diag}(\lambda)F^H)^{-1}X^Hy\\&=(F{\rm diag}(\hat x^*\odot\hat x+\lambda)F^H)^{-1}X^Hy\\&=(F{\rm diag}(\frac{\hat x^*}{\hat x^*\odot\hat x+\lambda})F^H)y\end{aligned}$
+
+其中，$^*$为共轭复数，$^H$为共轭转置，$\odot$为逐元素相乘。
+
+由$X=C(\mathcal F^{-1}(\hat x))$，可得：
+
+$w=C(\mathcal F^{-1}(\frac{\hat x^*}{\hat x^*\odot\hat x+\lambda}))y$
+
+$w$经过DFT得（循环位移$C$是线性变换）：
+
+$\hat w=\mathcal F(w)=\mathcal F(C(\mathcal F^{-1}(\frac{\hat x^*}{\hat x^*\odot\hat x+\lambda})))\hat y={\rm diag}(\frac{\hat x^*}{\hat x^*\odot\hat x+\lambda})\hat y$
+
+### 核技巧
+
+引入核技巧来将问题扩展到非线性空间，回归系数$w$用$x$和对偶空间下的$\alpha$的线性组合表示如下：
+
+$w=\sum\limits_i\alpha_i\varphi(x_i)$
+
+回归问题就转为：
+
+$f(z)=w^Tz=\sum\limits^n_{i=1}\alpha_i\kappa(z,x_i),\quad \varphi^T(x)\varphi(x')=\kappa(x,x')$
+
+其中$\kappa$为核函数，如高斯核函数等。
+
+使用核技巧的岭回归问题的解为（$w$由$\alpha$替代）：
+
+$\alpha=(K+\lambda I)^{-1}y$
+
+其中，$K$为核矩阵。事实上，$K$随循环位移而循环变化。因此，可以应用循环矩阵的对角化性质：
+
+$\hat\alpha=\frac{\hat y}{\hat k^{xx}+\lambda}$
+
+其中，$k^{xx}$是$K$的第一行（$K=C(k^{xx})$）。
+
+### 算法流程
+
+<img src="object_tracking/2025-05-27-17-33-14-image.png" title="" alt="" width="381">
