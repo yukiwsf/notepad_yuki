@@ -275,4 +275,212 @@ $\hat\alpha=\frac{\hat y}{\hat k^{xx}+\lambda}$
 
 ## SiamFC
 
-离线学习，在线跟踪。学习一个函数/模型f(z,x)，来比较模板图像z和搜索图像x的相关性，如果两个图像的相关性越高，则得分越高。
+SiamFC训练一个模型$f(z,x)$，来比较模板图像$z$和搜索图像$x$的相关性，如果两个图像的相关性越高，则得分越高。
+
+SiamFC有两个核心函数，init函数和update函数，init函数输入exemplar image提取滤波器（模板图像的特征图），update函数输入search image提取搜索图像的特征图并与滤波器做互相关操作（将卷积核上下翻转、左右翻转，即旋转$180$度后，再做卷积），得到score map（score map中得分高的地方为目标物体的中心点位置）。 
+
+SiamFC只能预测模板图像在搜索图像中的位置（利用score map找到中心点坐标），宽高则沿用模板图像的宽高（即$255\times255$的搜索图像中，模板图像的尺寸为$127\times127$）。
+
+全卷积Siamese网络结构：
+
+<img title="" src="object_tracking/2025-05-28-21-03-34-GetImage.png" alt="" width="445">
+
+上图中，$z$是exemplar image（模板图像），$x$是search image（搜索图像），$\varphi$是transformation（deep conv-net $f$）。 
+
+Siamese网络在由一个模板图像与大量搜索图像构成的数据集上训练得到，其损失函数为：
+
+$\ell(x)=\log(1+\exp(-yv))$
+
+其中，$v$是模型输出的score map中每个响应点的得分，$y$是对应的真值（$y\in\{-1,1\}$）。
+
+对整个score map：
+
+$L(y,v)=\frac{1}{\vert\mathcal D\vert}\sum\limits_{u\in\mathcal D}\ell(y[u],v[u])$
+
+其中，$v:\mathcal D\to\mathbb R$。
+
+## SiamRPN
+
+SiamRPN基于SiamFC，引入了Faster R-CNN中的RPN模块，让跟踪器可以回归宽高。
+
+网络结构：
+
+<img title="" src="object_tracking/2025-05-29-13-45-53-GetImage(1).png" alt="" width="534">
+
+RPN模块分为Classification分支和Regression分支，每个分支分别做互相关操作，得到对应的output：
+
+$A^{cls}_{w\times h\times2k}=[\varphi(x)]_{cls}\star[\varphi(z)]_{cls}$
+
+$A^{reg}_{w\times h\times4k}=[\varphi(x)]_{reg}\star[\varphi(z)]_{reg}$
+
+Classification分支：
+
+output（$17\times17\times2k$）：$k$代表$k$个目标，每个目标有$2$个通道（positive、negative）。 
+
+Regression分支： 
+
+output（$17\times17\times4k$）：$k$代表$k$个目标，每个目标有$4$个通道（${\rm d}x$、${\rm d}y$、${\rm d}w$、${\rm d}h$）。
+
+损失函数：
+
+$loss=L_{cls}+\lambda L_{reg}$
+
+其中，$\lambda$是用来平衡$L_{cls}$和$L_{reg}$的超参数。$L_{cls}$是cross entropy loss，$L_{reg}$是：
+
+$L_{cls}=\sum\limits^3_{i=0}smooth_{L_1}(\delta[i],\sigma)$
+
+$smooth_{L_1}(x,\sigma)=\begin{cases}0.5\sigma^2x^2,\quad\vert x\vert\lt\frac{1}{\sigma^2}\\\vert x\vert-\frac{1}{2\sigma^2},\quad\vert x\vert\ge\frac{1}{\sigma^2}\end{cases}$
+
+$\delta[0]=\frac{T_x-Ax}{A_w},\quad\delta[1]=\frac{T_y-A_y}{A_h}\\\delta[2]=\ln\frac{T_w}{A_w},\quad\delta[1]=\ln\frac{T_h}{A_h}$
+
+其中，$A_x$、$A_y$、$A_w$、$A_h$是anchor box的中心点坐标和宽高，$T_x$、$T_y$、$T_w$、$T_h$是ground truth box的中心点坐标和宽高。
+
+anchor与ground truth匹配：
+
+与ground truth的IoU大于0.6的anchor与之匹配并标记为positive，与ground truth的IoU小于0.3的anchor不予匹配并标记为negative。同时，限制一个训练样本对（一个exemplar和多个search）中最多只有64个search样本（positive + negative），其中包含最多16个positive search样本。
+
+## SORT
+
+基于目标检测的多目标跟踪方法，将目标检测的结果，与卡尔曼滤波器的预测结果应用线性分配算法，对匹配成功的卡尔曼滤波器用目标检测结果进行更新校正。
+
+### 卡尔曼滤波
+
+目标运动方程：
+
+$x_k=F_kx_{k-1}+B_ku_k+w_k$
+
+其中，$x_k$是$k$时刻的状态向量（位置、速度等）；$F_k$是$k$时刻的状态转移矩阵；$u_k$表示$k$时刻的控制输入量（加速度等）；$w_k$是$k$时刻的过程噪声，假定其均值为$0$，协方差矩阵为$Q_k$，且服从高斯分布，$w_k\sim N(0,Q_k)$。
+
+目标观测方程：
+
+$z_k=H_kx_k+v_k$
+
+其中，$H_k$是$k$时刻的观测矩阵，它把真实状态空间映射成观测空间；$v_k$是观测噪声，其均值为$0$，协方差矩阵为$R_k$，且服从高斯分布$v_k\sim N(0,R_k)$。
+
+预测阶段：
+
+$x_k=F_kx_{k-1}+B_ku_k$，预测状态向量
+
+$P_k=F_kP_{k-1}F^T_k+Q_k$，预测状态向量的协方差矩阵
+
+更新阶段：
+
+$y_k=z_k-H_kx_k$，更新观测残差
+
+$S_k=H_kP_kH^T_k+R_k$，更新观测残差协方差矩阵
+
+$K_k=P_kH^T_kS^{-1}_k$，更新卡尔曼增益
+
+$x_k=x_k+K_ky_k$，更新状态向量
+
+$P_k=(I-K_kH_k)P_k$，更新状态向量的协方差矩阵
+
+卡尔曼滤波是最优线性高斯系统的无偏估计，但必须给出初始状态$\{x_0,P_0\}$。
+
+只要观测噪声协方差矩阵是正定的，卡尔曼滤波就是稳定的。
+
+卡尔曼滤波达到稳态时，状态向量的协方差和卡尔曼增益都会收敛到一个稳定值。
+
+### 匈牙利匹配
+
+完美匹配：定义$X=\{x_1,x_2,…,x_n\}$与$Y=\{y_1,y_2,…,y_n\}$，一个完美匹配就是定义从$X$到$Y$的一个双射（一一映射）。 
+
+最大匹配：实现尽可能多的匹配。 
+
+完美匹配一定是最大匹配，但是最大匹配不一定是完美匹配。
+
+二分图：设$G=(V,E)$是一个无向图，如果顶点$V$可分割为两个互不相交的子集$(A,B)$，并且图中的每条边$(i,j)$所关联的两个顶点$i$和$j$分别属于这两个不同的顶点集$A$和$B$，则称图$G$为一个二分图。
+
+二分图的最大匹配：设$G$为二分图，若在$G$的子图$M$中，任意两条边都没有公共节点，则称$M$为二分图$G$的一组匹配。在二分图$G$中，包含边数最多的一组匹配被称为二分图$G$的最大匹配。 
+
+交替路：从一个未匹配点出发，依次经过非匹配边、匹配边、非匹配边、...、形成的路径被称为交替路。 
+
+增广路：从一个为未配点出发，走交替路，若能达到另一个未匹配点，则称这条交替路为增广路。如$3\to5\to1\to4\to2\to7$。 观察增广路，我们会发现：非匹配边比匹配边多一条。只要把增广路中的匹配边和非匹配边的身份交换，匹配的边数便可以比原来多一条。这里的增广路就是指能增加匹配边的一条路。 
+
+匈牙利算法：通过遍历每个匹配方节点寻找增广路来增加匹配边，当找不到增广路时，达到最大匹配（可以用DFS、BFS实现）。
+
+<img src="object_tracking/2025-06-08-11-07-05-GetImage.png" title="" alt="" width="219">
+
+### 线性分配（Linear Assignment）
+
+给定代价矩阵（$M\times N$），求解最小代价的最大匹配。 
+
+算法流程： 
+
+1. 对于矩阵的每一行，减去其中最小的元素。 
+
+2. 对于矩阵的每一列，减去其中最小的元素。 
+
+3. 用最少的水平线或垂直线覆盖矩阵中所有的0。 
+
+4. 如果线的数量等于M与N的最小值，则找到了最优分配，算法结束，否则进入步骤5。 
+
+5. 找到没有被任何线覆盖的最小元素，每个没被线覆盖的行减去这个元素，每个被线覆盖的列加上这个元素，返回步骤3。 
+
+举个例子，假设现在有3个任务，要分别分配给3个人，每个人完成各个任务所需代价矩阵（cost matrix）如下所示（这个代价可以是金钱、时间等），怎样才能找到一个最优分配，使得完成所有任务花费的代价最小？
+
+|          | Task_1 | Task_2 | Task_3 |
+| -------- | ------ | ------ | ------ |
+| Person_1 | 15     | 40     | 45     |
+| Person_2 | 20     | 60     | 35     |
+| Person_3 | 20     | 40     | 25     |
+
+1. 每一行最小的元素分别为15、20、20，减去得到：
+   
+   |          | Task_1 | Task_2 | Task_3 |
+   | -------- | ------ | ------ | ------ |
+   | Person_1 | 0      | 25     | 30     |
+   | Person_2 | 0      | 40     | 15     |
+   | Person_3 | 0      | 20     | 5      |
+
+2. 每一列最小的元素分别为0、20、5，减去得到：
+   
+   |          | Task_1 | Task_2 | Task_3 |
+   | -------- | ------ | ------ | ------ |
+   | Person_1 | 0      | 5      | 25     |
+   | Person_2 | 0      | 20     | 10     |
+   | Person_3 | 0      | 0      | 0      |
+
+3. 用最少的水平线或垂直线覆盖所有的0，得到线的数量为2，小于3，进入下一步；
+
+4. 现在没被覆盖的最小元素是5，没被覆盖的行（第一和第二行）减去5，得到：
+   
+   |          | Task_1 | Task_2 | Task_3 |
+   | -------- | ------ | ------ | ------ |
+   | Person_1 | -5     | 0      | 20     |
+   | Person_2 | -5     | 15     | 5      |
+   | Person_3 | 0      | 0      | 0      |
+   
+   被覆盖的列（第一列）加上5，得到：
+   
+   |          | Task_1 | Task_2 | Task_3 |
+   | -------- | ------ | ------ | ------ |
+   | Person_1 | 0      | 0      | 20     |
+   | Person_2 | 0      | 15     | 5      |
+   | Person_3 | 5      | 0      | 0      |
+
+5. 跳转到步骤3，用最少的水平线或垂直线覆盖所有的0，得到线的数量为3，满足条件，算法结束。显然，将任务2分配给第1个人、任务1分配给第2个人、任务3分配给第3个人时，总的代价最小（0+0+0=0）：
+   
+   |          | Task_1 | Task_2 | Task_3 |
+   | -------- | ------ | ------ | ------ |
+   | Person_1 | 0      | 0      | 20     |
+   | Person_2 | 0      | 15     | 5      |
+   | Person_3 | 5      | 0      | 0      |
+   
+   所以原矩阵的最小总代价为（40+20+25=85）：
+   
+   |          | Task_1 | Task_2 | Task_3 |
+   | -------- | ------ | ------ | ------ |
+   | Person_1 | 15     | 40     | 45     |
+   | Person_2 | 20     | 60     | 35     |
+   | Person_3 | 20     | 40     | 25     |
+
+### SORT（Detection-Based Tracking）
+
+SORT: Simple Online and Realtime Tracking 
+
+维护两个序列：跟踪序列(Trks)、检测序列（Dets）。 
+
+核心思想：在匹配成功的条件下，用检测框更新跟踪框，只有连续多次匹配成功的跟踪框才被确认（输出给下游）。 
+
+比DeepSORT算法精度低，但帧率高。
