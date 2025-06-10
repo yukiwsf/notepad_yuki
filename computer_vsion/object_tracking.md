@@ -475,12 +475,20 @@ $P_k=(I-K_kH_k)P_k$，更新状态向量的协方差矩阵
    | Person_2 | 20     | 60     | 35     |
    | Person_3 | 20     | 40     | 25     |
 
-### SORT（Detection-Based Tracking）
+### SORT（Simple Online and Realtime Tracking）
 
-SORT: Simple Online and Realtime Tracking 
+维护两个序列：跟踪序列(Tracks)、检测序列（Detections）。 
 
-维护两个序列：跟踪序列(Trks)、检测序列（Dets）。 
+状态向量：$u$、$v$、$s$、$r$、$\Delta u$、$\Delta v$、$\Delta s$，$u$、$v$是中心点坐标，$s$是面积，$r$是宽高比。
 
 核心思想：在匹配成功的条件下，用检测框更新跟踪框，只有连续多次匹配成功的跟踪框才被确认（输出给下游）。 
 
 比DeepSORT算法精度低，但帧率高。
+
+![](object_tracking/2025-06-10-22-35-10-image.png)
+
+
+
+### DeepSORT
+
+![](object_tracking/2025-06-10-22-35-33-image.png)
