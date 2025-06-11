@@ -343,7 +343,7 @@ anchor与ground truth匹配：
 
 基于目标检测的多目标跟踪方法，将目标检测的结果，与卡尔曼滤波器的预测结果应用线性分配算法，对匹配成功的卡尔曼滤波器用目标检测结果进行更新校正。
 
-### 卡尔曼滤波
+### 卡尔曼滤波（Kalman Filter）
 
 目标运动方程：
 
@@ -381,7 +381,7 @@ $P_k=(I-K_kH_k)P_k$，更新状态向量的协方差矩阵
 
 卡尔曼滤波达到稳态时，状态向量的协方差和卡尔曼增益都会收敛到一个稳定值。
 
-### 匈牙利匹配
+### 匈牙利算法（Hungarian Algorithm）
 
 完美匹配：定义$X=\{x_1,x_2,…,x_n\}$与$Y=\{y_1,y_2,…,y_n\}$，一个完美匹配就是定义从$X$到$Y$的一个双射（一一映射）。 
 
@@ -479,16 +479,28 @@ $P_k=(I-K_kH_k)P_k$，更新状态向量的协方差矩阵
 
 维护两个序列：跟踪序列(Tracks)、检测序列（Detections）。 
 
-状态向量：$u$、$v$、$s$、$r$、$\Delta u$、$\Delta v$、$\Delta s$，$u$、$v$是中心点坐标，$s$是面积，$r$是宽高比。
+KF状态向量：$u$、$v$、$s$、$r$、$\Delta u$、$\Delta v$、$\Delta s$。其中，$u$、$v$是中心点坐标，$s$是面积，$r$是宽高比。
+
+KF状态转移矩阵默认值：
+
+$F=\begin{bmatrix}1&0&0&0&1&0&0\\0&1&0&0&0&1&0\\0&0&1&0&0&0&1\\0&0&0&1&0&0&0\\0&0&0&0&1&0&0\\0&0&0&0&0&1&0\\0&0&0&0&0&0&1\end{bmatrix}$
+
+KF观测矩阵默认值：
+
+$H=\begin{bmatrix}1&0&0&0&0&0&0\\0&1&0&0&0&0&0\\0&0&1&0&0&0&0\\0&0&0&1&0&0&0\end{bmatrix}$
 
 核心思想：在匹配成功的条件下，用检测框更新跟踪框，只有连续多次匹配成功的跟踪框才被确认（输出给下游）。 
 
-比DeepSORT算法精度低，但帧率高。
+算法流程：
 
-![](object_tracking/2025-06-10-22-35-10-image.png)
+<img src="object_tracking/2025-06-10-22-35-10-image.png" title="" alt="" width="604">
 
+### DeepSORT（SORT with a deep association metric）
 
+DeepSORT在SORT的基础上增加了级联匹配（Matching Cascade）。其中，构建代价矩阵时，使用了
 
-### DeepSORT
+算法流程：
 
-![](object_tracking/2025-06-10-22-35-33-image.png)
+<img src="object_tracking/2025-06-10-22-35-33-image.png" title="" alt="" width="633">
+
+级联匹配（Matching Cascade）：
