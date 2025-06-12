@@ -493,7 +493,7 @@ $H=\begin{bmatrix}1&0&0&0&0&0&0\\0&1&0&0&0&0&0\\0&0&1&0&0&0&0\\0&0&0&1&0&0&0\end
 
 算法流程：
 
-<img src="object_tracking/2025-06-10-22-35-10-image.png" title="" alt="" width="604">
+<img title="" src="object_tracking/2025-06-10-22-35-10-image.png" alt="" width="560">
 
 ### DeepSORT（SORT with a deep association metric）
 
@@ -501,6 +501,8 @@ DeepSORT在SORT的基础上增加了级联匹配（Matching Cascade）。其中�
 
 算法流程：
 
-<img src="object_tracking/2025-06-10-22-35-33-image.png" title="" alt="" width="633">
+<img src="object_tracking/2025-06-12-21-39-32-image.png" title="" alt="" width="602">
 
 级联匹配（Matching Cascade）：
+
+<img title="" src="object_tracking/2025-06-12-22-35-49-image.png" alt="" width="484">
