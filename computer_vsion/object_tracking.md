@@ -510,3 +510,7 @@ DeepSORT在SORT的基础上增加了级联匹配（Matching Cascade）。其中�
 ### ByteTrack
 
 BYTE是作者提出来的一种新的数据关联方法，是整篇论文最关键所在。区别于其它只对高置信度检测框与跟踪框进行匹配的方法，BYTE将检测框划分为高置信度和低置信度两组，并分别与跟踪框进行匹配，以充分利用所有的检测框。
+
+算法流程：
+
+<img src="object_tracking/2025-06-17-23-26-40-image.png" title="" alt="" width="628">
