@@ -497,7 +497,7 @@ $H=\begin{bmatrix}1&0&0&0&0&0&0\\0&1&0&0&0&0&0\\0&0&1&0&0&0&0\\0&0&0&1&0&0&0\end
 
 ### DeepSORT（SORT with a deep association metric）
 
-DeepSORT在SORT的基础上增加了级联匹配（Matching Cascade）。其中，构建代价矩阵时，使用了
+DeepSORT在SORT的基础上增加了级联匹配（Matching Cascade）。其中，构建代价矩阵时，使用了马氏距离与余弦距离，并结合阈值过滤（大于阈值的置为代价无穷大）。
 
 算法流程：
 
@@ -506,3 +506,7 @@ DeepSORT在SORT的基础上增加了级联匹配（Matching Cascade）。其中�
 级联匹配（Matching Cascade）：
 
 <img title="" src="object_tracking/2025-06-12-22-35-49-image.png" alt="" width="484">
+
+### ByteTrack
+
+BYTE是作者提出来的一种新的数据关联方法，是整篇论文最关键所在。区别于其它只对高置信度检测框与跟踪框进行匹配的方法，BYTE将检测框划分为高置信度和低置信度两组，并分别与跟踪框进行匹配，以充分利用所有的检测框。
