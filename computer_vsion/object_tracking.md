@@ -495,7 +495,7 @@ $H=\begin{bmatrix}1&0&0&0&0&0&0\\0&1&0&0&0&0&0\\0&0&1&0&0&0&0\\0&0&0&1&0&0&0\end
 
 <img title="" src="object_tracking/2025-06-10-22-35-10-image.png" alt="" width="560">
 
-### DeepSORT（SORT with a deep association metric）
+### DeepSORT（SORT with a Deep Association Metric）
 
 DeepSORT在SORT的基础上增加了级联匹配（Matching Cascade）。其中，构建代价矩阵时，使用了马氏距离与余弦距离，并结合阈值过滤（大于阈值的置为代价无穷大）。
 
@@ -507,10 +507,12 @@ DeepSORT在SORT的基础上增加了级联匹配（Matching Cascade）。其中�
 
 <img title="" src="object_tracking/2025-06-12-22-35-49-image.png" alt="" width="484">
 
-### ByteTrack
+### BYTETrack（Multi-Object Tracking by Associating Every Detection Box）
 
 BYTE是作者提出来的一种新的数据关联方法，是整篇论文最关键所在。区别于其它只对高置信度检测框与跟踪框进行匹配的方法，BYTE将检测框划分为高置信度和低置信度两组，并分别与跟踪框进行匹配，以充分利用所有的检测框。
 
 算法流程：
 
-<img src="object_tracking/2025-06-17-23-26-40-image.png" title="" alt="" width="628">
+<img title="" src="object_tracking/2025-06-18-23-26-19-image.png" alt="" width="550">
+
+### BoT-SORT（Robust Associations Multi-Pedestrian Tracking）
