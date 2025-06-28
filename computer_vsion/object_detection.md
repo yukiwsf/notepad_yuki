@@ -114,6 +114,22 @@ if __name__ == "__main__":
 
 ## NMS
 
+NMS，即非极大值抑制（筛选出score最高的候选区域，删除冗余的候选区域）： 
+
+1. 统计整个输入image上预测出的所有候选区域（不区分类别）的位置坐标（左上右下）和score；
+
+2. 对所有候选区域排序（按score由大到小）存入列表a；
+
+3. 建立空列表b收集候选区域下标；
+
+4. 循环（列表a是否为空）：
+   
+   1. 将当前列表a中score最高的候选区域下标删除并转存到列表b； 
+   
+   2. 计算列表a中所有候选区域与该候选区域的IoU；
+   
+   3. 保留所有小于IoU阈值的候选区域在列表a中并进行下一轮循环。
+
 ```python
 import numpy as np 
 
@@ -327,6 +343,156 @@ NMS缺点：当两个目标距离很近时，score低的预测框可能被删掉
 
 核心思想：不要直接删除所有IoU大于阈值的框，而是降低其score，IoU越大score越低。 
 
-NMS可以描述为：把IoU大于阈值的预测框score置为0。
+NMS可以描述为（把IoU大于阈值的预测框score置为0）：
 
-$s_i=\begin{cases}s_i,\quad{\rm iou}(\mathcal{M} )\end{cases}$
+$s_i=\begin{cases}s_i,\quad iou(\mathcal{M},b_i)\lt N_t\\0,\quad iou(\mathcal{M},b_i)\geq N_t\end{cases}$
+
+Soft-NMS降低score的方法（权重函数）：
+
+1. 线性加权
+   
+   $s_i=\begin{cases}s_i,\quad iou(\mathcal{M},b_i)\lt N_t\\s_i(1-iou(\mathcal{M},b_i)),\quad iou(\mathcal{M},b_i)\geq N_t\end{cases}$
+
+2. 高斯加权
+   
+   $s_i=s_ie^{-\frac{ iou(\mathcal{M},b_i)^2}{\sigma}},\forall b_i\notin\mathcal{D}$
+
+算法流程：
+
+<img src="object_detection/2025-06-23-16-41-15-image.png" title="" alt="" width="298">
+
+$f(iou(\mathcal{M},b_i))$是一个权重函数，该函数会衰减与检测框M有重叠的其它检测框的score，越是与M重叠度高的检测框，其score衰减就越大。
+
+## Trick
+
+解决小目标检测的手段：
+
+1. 优化模型结构，增强特征提取能力，例如加入FPN、SPP或小目标检测层（增加上采样层提高上采样倍数，增加小尺寸anchor）。 
+
+2. 增大输入图像的分辨率。
+
+3. 训练时增加困难样本挖掘。
+
+不同的多尺度（multi-scale）特征图预测方式：
+
+<img src="object_detection/2025-06-24-10-30-16-GetImage.png" title="" alt="" width="427">
+
+(a)首先建立图像金字塔（上/下采样），不同尺度的金字塔图像被输入到对应的网络当中，用于不同scale物体的检测。但这样做的结果就是每个级别的金字塔都需要进行一次处理，速度很慢，在SPPNet使用的就是这种方式。
+
+(b)检测只在最后一层feature map阶段进行，这个结构无法检测不同尺度的物体。
+
+(c)对网络中不同深度的feature map分别进行目标检测。这样小的物体会在浅层的feature map中被检测出来，而大的物体会在深层的feature map被检测出来，从而达到对应不同尺度的物体的目的，缺点是每一个feature map获得的信息仅来源于之前的层，之后的层的特征信息无法获取并加以利用。SSD中采用的便是这样的结构。
+
+(d)与(c)很接近，但不同的是，当前层的feature map会对未来层的feature map进行上采样，并加以利用。因为有了这样一个结构，当前的feature map就可以获得未来层的信息，低阶特征与高阶特征就有机融合起来，提升检测精度。YOLOv3就是采用这种方式来实现多尺度检测的。
+
+总结：把浅层网络提取的特征（细节）传递下来，补充深层网络提取的特征（轮廓），这样就可以获得高分辨率、强语义的特征，有利于检测不同尺度的目标（浅层网络容易提取图像特征，深层网络提取语义特征）。
+
+解决训练过程中正负样本不均衡的手段：
+
+1. 人为控制参与loss计算的anchor的数量与正负样本比例。
+
+2. 增大对少数样本的惩罚权重（如Focal Loss）。
+
+解决误检的手段：
+
+- 数据
+  
+  1. 误检测类别的样本重采样（优点：提升Recall；缺点：可能会降低Precision）。
+  
+  2. 数据类别平衡。
+
+- 训练策略
+  
+  1. 在box、confidence loss（YOLO）能够正常收敛的前提下，增大cls loss的权重。
+  
+  2. 增大focal loss的gamma值，增大对困难分类样本的loss（对于样本数量缺乏的类别不work）；增大focal loss的alpha值，增大正样本的loss权重。
+  
+  3. 增大cls loss中正样本的loss权重（如lossbce loss的positive weight）。
+
+- 模型结构
+  
+  1. 优化模型结构（缺点：params增大）。
+  
+  2. 增大输入尺寸（缺点：flops增大）。
+
+衡量Precision和Recall的时候，一定要保证Precision达到可接受的指标时，再提升Recall。否则，会出现很多误检测。
+
+解决漏检的手段：
+
+- 数据
+  
+  1. 漏检测类别的样本重采样。
+  
+  2. 数据类别平衡。
+
+- 训练策略
+  
+  1. 在box、cls loss能够正常收敛的前提下，增大confidence loss（YOLO）权重。
+  
+  2. 增大正样本的loss权重（focal loss的alpha值、bce loss的positive weight）。
+  
+  3. 针对背景类别（SSD）使用label-smoothing（缺点：引入误检测风险）。
+
+- 模型结构
+  
+  1. 优化模型结构（缺点：params增大）。
+  
+  2. 增大输入尺寸（缺点：flops增大）。
+
+- 后处理
+  
+  1. single-class nms
+  
+  2. soft nms
+
+提升目标检测性能的训练手段：
+
+1. 数据增强（Mosaic、RandomAffine、Resize等）。
+
+2. 使用mask标注优化目标检测性能（在数据集标注完备，例如同时存在边界框和实例分割标注但任务只需要其中部分标注的情况下，可以借助完备的数据标注训练单一任务从而提升性能）。
+
+3. 训练后期关闭数据增强以提升目标检测性能（虽然数据增强可以极大地提升目标检测性能，但是它生成的训练图片远远脱离自然图片的真实分布，在最后15个epoch关掉强增强，转而使用较弱的增强，从而让检测器避开不准确标注框的影响，在自然图片的数据分布下完成最终的收敛）。如果关闭太早则可能没有充分发挥数据增强效果，如果关闭太晚则由于之前已经过拟合，此时再关闭则没有任何增益。
+
+4. 加入纯背景图片抑制误检测。
+
+5. 考虑ignore区域不确定性标注（把ignore区域当做忽略区域即该区域的任何输出都直接忽略，不计算任何loss，不强迫模型拟合）。
+
+## R-CNN
+
+Rich feature hierarchies-CNN
+
+网络结构：
+
+<img title="" src="object_detection/2025-06-24-23-19-28-image.png" alt="" width="343">
+
+训练步骤： 
+
+1. 训练CNN网络用于提取候选区域的特征向量： 
+   1. AlexNet网络在imagenet上做预训练。
+   2. AlexNet网络在训练集上做微调。 
+
+2. 训练SVM用于候选区域的分类。 
+
+3. 训练线性回归器用于候选区域的坐标回归。
+
+预测步骤：
+
+1. 使用选择性搜索（Selective Search）在输入图片中提取候选区域（Region Proposal）。 
+
+2. 把每个候选区域输入给CNN网络提取特征向量。 
+
+3. 使用20个SVM分类，每个候选区域用这20个SVM分类器打分（score），大于0.5则属于这个类别。 
+
+4. 使用线性回归器修正候选区域的位置与尺寸。 
+
+5. NMS。
+
+R-CNN缺点： 
+
+1. 训练阶段多（微调CNN网络+训练SVM+训练线性回归器），步骤繁琐，无法实现从SVM到CNN的反向传播。 
+
+2. 无法保证图片不变形（CNN网络的输入是选择性搜索得到的候选框，固定为$227\times227$）。
+
+## SPPNet
+
+R-CNN中的AlexNet网络要求输入$227\times227$的固定尺寸图片，因此图片需要经过缩放才能输入进网络，会造成特征丢失。SPPNet引入空间金字塔池化（Spatial Pyramid Pooling，SPP）层以移除固定输入尺寸的限制。
