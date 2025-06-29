@@ -373,7 +373,7 @@ $f(iou(\mathcal{M},b_i))$是一个权重函数，该函数会衰减与检测框M
 
 3. 训练时增加困难样本挖掘。
 
-不同的多尺度（multi-scale）特征图预测方式：
+不同的多尺度（Multi-Scale）特征图预测方式：
 
 <img src="object_detection/2025-06-24-10-30-16-GetImage.png" title="" alt="" width="427">
 
@@ -391,7 +391,7 @@ $f(iou(\mathcal{M},b_i))$是一个权重函数，该函数会衰减与检测框M
 
 1. 人为控制参与loss计算的anchor的数量与正负样本比例。
 
-2. 增大对少数样本的惩罚权重（如Focal Loss）。
+2. 增大对少数样本的惩罚权重（如focal Loss）。
 
 解决误检的手段：
 
@@ -407,7 +407,7 @@ $f(iou(\mathcal{M},b_i))$是一个权重函数，该函数会衰减与检测框M
   
   2. 增大focal loss的gamma值，增大对困难分类样本的loss（对于样本数量缺乏的类别不work）；增大focal loss的alpha值，增大正样本的loss权重。
   
-  3. 增大cls loss中正样本的loss权重（如lossbce loss的positive weight）。
+  3. 增大cls loss中正样本的loss权重（如bce loss的positive weight）。
 
 - 模型结构
   
@@ -427,11 +427,11 @@ $f(iou(\mathcal{M},b_i))$是一个权重函数，该函数会衰减与检测框M
 
 - 训练策略
   
-  1. 在box、cls loss能够正常收敛的前提下，增大confidence loss（YOLO）权重。
+  1. 在box、cls loss能够正常收敛的前提下，增大confidence loss权重（YOLO）。
   
   2. 增大正样本的loss权重（focal loss的alpha值、bce loss的positive weight）。
   
-  3. 针对背景类别（SSD）使用label-smoothing（缺点：引入误检测风险）。
+  3. 针对背景类别使用label-smoothing（SSD，缺点：引入误检测风险）。
 
 - 模型结构
   
@@ -441,13 +441,13 @@ $f(iou(\mathcal{M},b_i))$是一个权重函数，该函数会衰减与检测框M
 
 - 后处理
   
-  1. single-class nms
+  1. Single-Class NMS
   
-  2. soft nms
+  2. Soft NMS
 
 提升目标检测性能的训练手段：
 
-1. 数据增强（Mosaic、RandomAffine、Resize等）。
+1. 数据增强（mosaic、random affine、resize等）。
 
 2. 使用mask标注优化目标检测性能（在数据集标注完备，例如同时存在边界框和实例分割标注但任务只需要其中部分标注的情况下，可以借助完备的数据标注训练单一任务从而提升性能）。
 
@@ -468,24 +468,45 @@ Rich feature hierarchies-CNN
 训练步骤： 
 
 1. 训练CNN网络用于提取候选区域的特征向量： 
-   1. AlexNet网络在imagenet上做预训练。
+   
+   1. AlexNet网络在ImageNet上做预训练。
    2. AlexNet网络在训练集上做微调。 
 
 2. 训练SVM用于候选区域的分类。 
 
-3. 训练线性回归器用于候选区域的坐标回归。
+3. 训练线性回归器用于候选区域的bounding box回归。
 
 预测步骤：
 
-1. 使用选择性搜索（Selective Search）在输入图片中提取候选区域（Region Proposal）。 
+1. 使用选择性搜索（selective search）在输入图片中提取候选区域（region proposal）。 
 
 2. 把每个候选区域输入给CNN网络提取特征向量。 
 
-3. 使用20个SVM分类，每个候选区域用这20个SVM分类器打分（score），大于0.5则属于这个类别。 
+3. 使用20个SVM分类（VOC有21个类别，包含背景类），每个候选区域用这20个SVM分类器打分（score），大于0.5则属于这个类别。 
 
-4. 使用线性回归器修正候选区域的位置与尺寸。 
+4. 使用线性回归器修正候选区域中目标的位置与尺寸。 
 
 5. NMS。
+
+线性回归器：
+
+- 目标函数（ridge regression）：
+  
+  $\mathrm{w}_{\star}=\argmin\limits_{\hat{\mathrm{w}}_{\star}}\sum\limits^N_i(t^i_{\star}-\hat{\mathrm{w}}^T_{\star}\phi_5(P^i))^2+\lambda\Vert \hat{\mathrm{w}_{\star}}\Vert^2$
+  
+  其中，$\phi_5$是CNN的数学表达式，$\mathrm{w}_{\star}$是线性回归器的可学习参数。
+
+- 回归目标$t_{\star}$：
+  
+  $t_x=\frac{(G_x-P_x)}{P_w}$
+  
+  $t_y=\frac{(G_y-P_y)}{P_h}$
+  
+  $t_w=\log(\frac{G_w}{P_w})$
+  
+  $t_h=\log(\frac{G_h}{P_h})$
+  
+  其中，$G$为region proposal中的ground truth，$P$为region proposal。
 
 R-CNN缺点： 
 
@@ -496,3 +517,65 @@ R-CNN缺点： 
 ## SPPNet
 
 R-CNN中的AlexNet网络要求输入$227\times227$的固定尺寸图片，因此图片需要经过缩放才能输入进网络，会造成特征丢失。SPPNet引入空间金字塔池化（Spatial Pyramid Pooling，SPP）层以移除固定输入尺寸的限制。
+
+训练步骤：
+
+1. 训练用于提取输入特征图的CNN网络。
+
+2. 训练用于分类的SVM。
+
+3. 训练用于回归坐标的线性回归器。
+
+预测步骤：
+
+1. 将输入图片输入给CNN提取整张图片的特征图（feature map）。
+
+2. 使用选择性搜索在输入图片中提取候选区域。
+
+3. 将候选区域下采样映射到特征图中的对应位置并提取出来输入给SPP层，输出固定长度的特征向量。
+
+4. 使用20个SVM进行分类。
+
+5. 使用线性回归器回归bounding box。
+
+6. NMS。
+
+SPP层（Spacial Pyramid Pooling Layer）：
+
+输入不同尺寸的候选区域，总能输出固定长度的特征向量（通过修改kernel size和stride）。
+
+1. 输入：任意尺寸的候选区域（映射到特征图中的候选区域，论文中举例$13\times13\times256$）。
+
+2. 输入候选区域尺寸（宽、高）为$i$（论文中举例$i=13$），空间金字塔层数设置为3，即分别用3种不同尺寸的kernel size（论文中举例$4\times4,2\times2,1\times1$）进行max pooling（max pooling kernel size为$\lceil\frac{i}{o}\rceil\times\lceil\frac{i}{o}\rceil$，stride为$\lfloor\frac{i}{o}\rfloor$，$o=1,2,4$），产生3层特征图金字塔。 
+
+3. 将每层特征图flatten成特征向量，再进行concat。 
+
+4. 输出concat之后的特征向量：$1\times1+2\times2+4\times4=21$个特征值。
+
+<img src="object_detection/2025-06-29-11-32-15-image.png" title="" alt="" width="375">
+
+## Fast R-CNN
+
+引入ROI Pooling、End2End。
+
+训练步骤：
+
+1. 端到端训练Fast R-CNN。
+
+预测步骤：
+
+1. 将输入图片输入给CNN提取整张图片的特征图（feature map）。
+
+2. 使用选择性搜索在输入图片中提取候选区域。
+
+3. 将候选区域下采样映射到特征图中的对应位置并提取出来输入给ROI Pooling层输出固定尺寸的特征图，flatten得到固定长度的特征向量。
+
+4. 将特征向量输入给全连接层+softmax进行分类（classification head）。
+
+5. 将特征向量输入给全连接层回归bounding box（regression head）。
+
+6. NMS。
+
+ROI Pooling：
+
+ROI Pooling是一个简单版本的SPP层，为了减少计算时间并且得出固定长度的向量。
