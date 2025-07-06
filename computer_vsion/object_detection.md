@@ -6,7 +6,7 @@
 
 目标检测算法分类： 
 
-1. One-stage（End-to-End，端到端）: 选取候选区域和目标检测（分类回归）放在一个网络中进行，如：YOLO系列。
+1. One-stage（端到端，End2End）: 选取候选区域和目标检测（分类回归）放在一个网络中进行，如：YOLO系列。
 
 2. Two-stage（两阶段）: 选取候选区域和目标检测分两阶段进行，如：R-CNN、SPPNet、Fast R-CNN、Faster R-CNN。
 
@@ -469,8 +469,8 @@ Rich feature hierarchies-CNN
 
 1. 训练CNN网络用于提取候选区域的特征向量： 
    
-   1. AlexNet网络在ImageNet上做预训练。
-   2. AlexNet网络在训练集上做微调。 
+   1. AlexNet网络在ImageNet上做预训练（pre-train）。
+   2. AlexNet网络在训练集上做微调（fine-tune）。 
 
 2. 训练SVM用于候选区域的分类。 
 
@@ -516,11 +516,11 @@ R-CNN缺点： 
 
 ## SPPNet
 
-R-CNN中的AlexNet网络要求输入$227\times227$的固定尺寸图片，因此图片需要经过缩放才能输入进网络，会造成特征丢失。SPPNet引入空间金字塔池化（Spatial Pyramid Pooling，SPP）层以移除固定输入尺寸的限制。
+R-CNN中的AlexNet网络要求输入$227\times227$的图片，因此图片需要经过缩放才能输入进网络，会造成特征丢失。SPPNet引入空间金字塔池化（Spatial Pyramid Pooling，SPP）层以移除固定输入尺寸的限制。
 
 训练步骤：
 
-1. 训练用于提取输入特征图的CNN网络。
+1. 训练用于提取输入特征图的CNN网络（VGG16去掉全连接层与softmax）。
 
 2. 训练用于分类的SVM。
 
@@ -528,7 +528,7 @@ R-CNN中的AlexNet网络要求输入$227\times227$的固定尺寸图片，因此
 
 预测步骤：
 
-1. 将输入图片输入给CNN提取整张图片的特征图（feature map）。
+1. 将整张图片输入给CNN网络提取特征图（feature map）。
 
 2. 使用选择性搜索在输入图片中提取候选区域。
 
@@ -554,13 +554,18 @@ SPP层（Spacial Pyramid Pooling Layer）：
 
 <img src="object_detection/2025-06-29-11-32-15-image.png" title="" alt="" width="375">
 
+SPPNet缺点：
+
+1. 仍然使用SVM到CNN的多阶段训练/预测。
+
 ## Fast R-CNN
 
 引入ROI Pooling、End2End。
 
 训练步骤：
 
-1. 端到端训练Fast R-CNN。
+1. 使用选择性搜索提取候选区域。
+2. End2End训练Fast R-CNN。
 
 预测步骤：
 
@@ -576,6 +581,142 @@ SPP层（Spacial Pyramid Pooling Layer）：
 
 6. NMS。
 
+<img title="" src="object_detection/2025-06-30-14-44-03-image.png" alt="" width="436">
+
 ROI Pooling：
 
-ROI Pooling是一个简单版本的SPP层，为了减少计算时间并且得出固定长度的向量。
+ROI Pooling是一个简单版本的SPP层，为了减少计算时间并且得出固定长度的向量。将映射到特征图中的候选区域划分为与ROI Pooling的输出尺寸相同的网格，例如：输出特征图宽高为$4\times3$，那么把输入特征图的宽等分成$4$份，高等分成$3$份。取每个网格内的最大值（Max Pooling）或平均值（Avg Pooling）进行池化操作。
+
+End2End训练： 
+
+从输入端到输出端直接用一个CNN网络加上全连接层与激活函数相连，整体优化目标函数。而CNN网络（去掉全连接层与激活函数）+SVM的组合由于SVM的参数在训练过程中无法通过反向传播与CNN网络同步更新权重，且SVM的模型参数需要写进磁盘中，读取速度较慢。
+
+多任务损失函数（针对End2End网络）：
+
+$L(p,u,t^u,v)=L_{\rm cls}(p,u)+\lambda[u\geq1]L_{\rm loc}(t^u,v)$
+
+其中，$\lambda$为超参数，控制两个损失函数之间的平衡；$L_{\rm cls}(p,u)=-\log p_u$；$p$为网络的分类预测结果；$u$为分类标签值（$u=0$为背景类）；$L_{\rm loc}(t^u,v)=\sum\limits_{i\in\{x,y,w,h\}}{\rm smooth}_{L_1(t^u_i-v_i)}$，${\rm smooth}_{L_1}(x)=\begin{cases}0.5x^2,\quad{\rm if}\vert x\vert\lt1\\\vert x\vert-0.5,\quad{\rm otherwise}\end{cases}$；$t$为预测框相对于候选区域的偏移量，$t^u=(t^u_x,t^u_y,t^u_y,t^u_h)$；$v$为预测框相对于候选区域的偏移量，$v=(v_x,v_y,v_w,v_h)$。
+
+Fast R-CNN优点： 
+
+1. 摒弃了SVM分类器，采用softmax层进行分类，统一了网络结构（End2End），有利于共享卷积层参数的训练。 
+
+2. 采用ROI Pooling层代替SPP层，简化了计算复杂度，训练/检测的效率提高。 
+
+Fast R-CNN缺点： 
+
+1. 仍然使用选择性搜索提取候选区域，不是真正意义上的End2End网络。
+
+## Faster R-CNN
+
+引入RPN代替选择性搜索提取候选区域。
+
+Faster R-CNN：RPN + Fast R-CNN。
+
+网络结构：
+
+1. CNN网络（VGG16）提取整张图片的feature map。
+
+2. feature map输入给RPN网络生成候选区域。
+
+3. Fast R-CNN。
+
+<img title="" src="object_detection/2025-07-01-21-24-50-image.png" alt="" width="229">
+
+RPN：
+
+RPN，Region Proposal Network，即区域生成网络，用于生成候选区域，也就是粗略的目标框。
+
+在输入feature map的每个sliding window（滑动窗口）上输出256维特征向量，分别输入给cls layer（分类分支）和reg layer（回归分支）用于分类回归候选区域。同时，每个滑动窗口生成k种宽高比的anchor box（锚框）作为预测框和真实框的基准框（计算$t_x,t_y,t_w,t_h$）。
+
+$t_x=\frac{x-x_a}{w_a}$
+
+$t_y=\frac{y-y_a}{h_a}$
+
+$t_w=\log(\frac{w}{w_a})$
+
+$t_h=\log(\frac{h}{h_a})$
+
+$t^*_x=\frac{x^*-x_a}{w_a}$
+
+$t^*_y=\frac{y^*-y_a}{h_a}$
+
+$t^*_w=\log(\frac{w^*}{w_a})$
+
+$t^*_h=\log(\frac{h^*}{h_a})$
+
+其中，$t$为回归偏移量的预测值，$t^*$为回归偏移量的标签值。
+
+<img src="object_detection/2025-07-01-21-26-35-image.png" title="" alt="" width="574">
+
+由于RPN网络和Fast R-CNN网络共享backbone，因此采用四步训练法：
+
+1. 训练由预训练backbone初始化的RPN网络，用于区域建议任务（提取候选区域）。 
+
+2. 利用步骤1中训练好的RPN网络，收集候选区域，用于训练由预训练backbone初始化的Fast R-CNN网络。 
+
+3. 使用训练好的Fast R-CNN的backbone初始化RPN网络并冻结（fix）backbone进行微调训练。 
+
+4. 利用步骤3中训练好的RPN网络，收集候选区域，冻结（fix）backbone训练Fast R-CNN网络。
+
+训练RPN网络的损失函数：
+
+$L({p_i}{t_i})=\frac{1}{N_{cls}}\sum\limits_iL_{cls}(p_i,p^*_i)+\lambda\frac{1}{N_{reg}}\sum\limits_ip^*_iL_{reg}(t_i,t^*_i)$
+
+其中，$i$是一个batch的样本中的第$i$个anchor，$p_i$是对应的分类预测结果，$p^*_i$是分类预测结果的标签值（如果anchor是正样本，则为$1$，否则为$0$），$L_{cls}$是二分类交叉熵损失函数（是否为object），$L_{reg}$是smooth L1损失函数（只有anchor是正样本时才计算$L_{reg}$），$N_{cls}$为batch size的大小，$N_{reg}$为一个batch中anchor的数量，当$\lambda=10$时，$L_{cls}$和$L_{reg}$的权重相同。
+
+训练RPN网络时的正负样本分配原则：
+
+- 将真实框分配给两种anchor，并标记为正样本：
+  
+  - 分配给IoU最高的anchor。
+  
+  - 分配给IoU大于0.7的anchor。
+  
+  注意，一个真实框可能被分配给多个anchor。
+
+- 如果一个anchor与所有的真实框IoU都小于0.3，则标记为负样本。
+
+- 对于既没有标记为正样本又不没有标记为负样本的anchor，不计算损失函数。
+
+## YOLOv1
+
+You Only Look Once
+
+移除RPN网络，真正的End2End。
+
+网络结构：
+
+一个全卷积网络搞定一切（受GoogLeNet启发），输入$448\times448$的图像，输出$7\times7\times30$的feature map（$7\times7=49$个grid cell）。每个grid cell中的30个channel代表20个类别概率、2个confidence、2组xywh，对应2个bounding box predictor。
+
+<img src="object_detection/2025-07-05-14-00-58-image.png" title="" alt="" width="543">
+
+<img src="object_detection/2025-07-05-16-34-24-image.png" title="" alt="" width="361">
+
+bounding box predictor与ground truth的匹配原则：
+
+当ground truth的中心点落在某个grid cell中时，该grid cell中的所有bounding box predictor回归预测结果中与ground truth的IoU最大的与其进行匹配（负责预测此ground truth）。如果多个ground truth落在同一个grid cell中时，只有一个ground truth能够参与匹配。因此，YOLOv1对相邻目标的预测效果欠佳。
+
+损失函数：
+
+bbox loss + confidence loss + classification loss
+
+<img src="object_detection/2025-07-05-19-46-02-image.png" title="" alt="" width="399">
+
+其中，
+
+$\lambda_{\rm coord}=5$为有ground truth落在其中的grid cell的loss权重，$\lambda_{\rm noobj}=0.5$为没有ground truth落在其中的grid cell的loss权重，以此平衡正负样本loss；
+
+$S^2$为grid cell的数量，$B$为一个grid cell中的bounding box predictor数量；
+
+$\mathbb 1^{\rm obj}_i$表示有ground truth落在第$i$个grid cell中，$\mathbb 1^{\rm obj}_{ij}$表示第$i$个grid cell的第$j$个bounding box predictor负责与该grid cell中的ground truth，$\mathbb 1^{\rm noobj}_{ij}$表示没有ground truth落在第$i$个grid cell中；
+
+$C_i={\rm Pr(Object)}\times{\rm IoU^{truth}_{pred}}$，$\rm Pr(Object)$是sigmoid输出的预测是否为object的置信度，$\hat{C}_i$是$C_i$的标签值（若有ground truth中心点落在grid cell内则$\hat{C}_i=1$，否则为0）；
+
+$p_i(c)$是softmax输出的对第$c$个类别的概率值，$\hat{p}_i(c)$为$p_i(C)$的标签值，表示中心点落在第$i$个grid cell的ground truth是否第$c$个类别（是为$1$，否则为$0$）；
+
+$x_i,y_i,w_i,h_i$为第$i$个grid cell中负责预测落在该grid cell中的ground truth的bounding box predictor的回归预测值，$\hat{x}_i,\hat{y}_i,\hat{w}_i,\hat{h}_i$为$x_i,y_i,w_i,h_i$的标签值，$\hat{x}_i=\frac{x_{\rm box}}{w_{\rm grid}}-\lfloor\frac{x_{\rm box}}{w_{\rm grid}}\rfloor,\hat{y}_i=\frac{y_{\rm box}}{h_{\rm grid}}-\lfloor\frac{y_{\rm box}}{h_{\rm grid}}\rfloor,w_{\rm grid}=\lfloor\frac{w_{\rm image}}{S}\rfloor,h_{\rm grid}=\lfloor\frac{h_{\rm image}}{S}\rfloor,\hat{w}_i=\frac{w_{\rm box}}{w_{\rm image}},\hat{h}_i=\frac{h_{\rm box}}{h_{\rm image}}$，$w_{\rm grid},h_{\rm grid}$为grid cell在原图中的尺寸。
+
+测试阶段，由于不知道ground truth，计算$C_i$的方式变为：
+
+$C_i={{\rm Pr}({\rm Class}_i|{\rm Object})}\times C_i={{\rm Pr}({\rm Class}_i|{\rm Object})}\times{\rm Pr(Object)}\times{\rm IoU^{truth}_{pred}}={\rm Pr}({\rm Class}_i)\times{\rm IoU^{truth}_{pred}}$
