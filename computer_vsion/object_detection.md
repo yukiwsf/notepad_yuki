@@ -717,6 +717,6 @@ $p_i(c)$是softmax输出的对第$c$个类别的概率值，$\hat{p}_i(c)$为$p_
 
 $x_i,y_i,w_i,h_i$为第$i$个grid cell中负责预测落在该grid cell中的ground truth的bounding box predictor的回归预测值，$\hat{x}_i,\hat{y}_i,\hat{w}_i,\hat{h}_i$为$x_i,y_i,w_i,h_i$的标签值，$\hat{x}_i=\frac{x_{\rm box}}{w_{\rm grid}}-\lfloor\frac{x_{\rm box}}{w_{\rm grid}}\rfloor,\hat{y}_i=\frac{y_{\rm box}}{h_{\rm grid}}-\lfloor\frac{y_{\rm box}}{h_{\rm grid}}\rfloor,w_{\rm grid}=\lfloor\frac{w_{\rm image}}{S}\rfloor,h_{\rm grid}=\lfloor\frac{h_{\rm image}}{S}\rfloor,\hat{w}_i=\frac{w_{\rm box}}{w_{\rm image}},\hat{h}_i=\frac{h_{\rm box}}{h_{\rm image}}$，$w_{\rm grid},h_{\rm grid}$为grid cell在原图中的尺寸。
 
-测试阶段，由于不知道ground truth，计算$C_i$的方式变为：
+测试阶段，计算$C_i$的方式变为：
 
 $C_i={{\rm Pr}({\rm Class}_i|{\rm Object})}\times C_i={{\rm Pr}({\rm Class}_i|{\rm Object})}\times{\rm Pr(Object)}\times{\rm IoU^{truth}_{pred}}={\rm Pr}({\rm Class}_i)\times{\rm IoU^{truth}_{pred}}$
