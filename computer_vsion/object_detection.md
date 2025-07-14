@@ -720,3 +720,47 @@ $x_i,y_i,w_i,h_i$为第$i$个grid cell中负责预测落在该grid cell中的gro
 测试阶段，计算$C_i$的方式变为：
 
 $C_i={{\rm Pr}({\rm Class}_i|{\rm Object})}\times C_i={{\rm Pr}({\rm Class}_i|{\rm Object})}\times{\rm Pr(Object)}\times{\rm IoU^{truth}_{pred}}={\rm Pr}({\rm Class}_i)\times{\rm IoU^{truth}_{pred}}$
+
+## YOLOv2
+
+论文原名YOLO9000，在v1的基础上增加了以下方法以提高性能：
+
+1. 在所有的卷积层后面增加了BN层
+   
+   CNN网络在训练过程中每层输入的分布一直在改变，会使训练过程难度加大，对网络的每个卷积层后都进行标准化（Standardization），调整数据分布，这样在训练时，网络就不需要在每一层都去适应新的数据分布，更容易收敛。
+
+2. 使用更高分辨率的输入图像进行训练
+   
+   相比于v1使用$224\times224$的输入图像进行训练（$448\times448$分辨率进行测试），v2则使用更高的$416\times416$分辨率进行训练。
+
+3. 加入anchor机制
+   
+   v2每个grid cell生成多个anchor，每个anchor都对应一个预测框，相比于v1中每个grid cell只能预测一个目标，可以预测更多的目标，且对相邻目标的预测效果更好，提高召回率。而且，anchor机制回归偏移量相比于直接回归坐标，网络训练时更容易收敛。绝对坐标的范围可能非常大（尤其是大尺寸目标），导致损失函数的梯度不稳定，难以优化；偏移量通常是相对值（例如相对于锚框的缩放或平移），数值范围较小，梯度更平滑，易于模型收敛。
+
+4. 使用聚类设置anchor尺寸
+   
+   v2在训练时使用k-means对ground truth做聚类，尝试找到最合适的anchor尺寸。将所有ground truth的宽高作为坐标$(w,h)$并从中选取n（n=3，每个grid cell生成n个anchor）个作为初始聚类中心，采用k-means算法对这些坐标进行聚类，直到某次迭代后聚类中心的移动量小于阈值，则将这n个聚类中心的坐标$(w,h)$作为设置anchor的尺寸。
+
+5. 预测框偏移量的回归范围限制
+   
+   模型不稳定大多数来自于预测框的位置。在Faster R-CNN中，bounding box回归预测$t_x,t_y,t_w,t_h$（anchor左上角坐标的偏移量以及宽高的归一化对数值），YOLOv2遵循v1的原则，预测框中心点坐标相对于grid cell的偏移量$\sigma(t_y),\sigma(t_y)$，$\sigma$为sigmoid函数，限制输出范围为$(0,1)$。 
+   
+   <img title="" src="object_detection/2025-07-11-11-48-06-image.png" alt="" width="324">
+   
+   上图中，虚线框为anchor，蓝框为预测框。
+   
+   对每个预测框，网络输出的预测值$t_x,t_y,t_w,t_h,t_o$，通过上述公式可得出预测框相对于输入图像的坐标$b_x,b_y,b_w,b_h$：
+   
+   $b_x=\sigma(t_x)+c_x\\b_y=\sigma(t_y)+c_y\\b_w=p_we^{t_w}\\b_h=p_he^{t_h}\\{\rm Pr}({\rm object})\times {\rm IoU}(b,{\rm object}))=\sigma(t_o)$
+   
+   其中，$(c_x,c_y)$是预测框所在grid cell在网络输出特征图（$13\times13$）中的index，$(p_w,p_h)$是预测框对应anchor的宽高（相对于网络输出特征图的宽高）。由于网络输出特征图是相对于输入图像（$416\times416$）的32倍下采样，因此还需要乘以采样倍率才能映射回输入图像。
+
+6. 细粒度特征（Fine-Grained Features）用于小目标检测
+   
+   v2引入一种称为passthrough layer（直通层）的方法在特征图中保留一些细节信息以提高对小目标的检测能力。具体来说，就是在最后一个pooling layer之前，特征图的大小是$26\times26\times512$，将其一拆四（LT、RT、LB、RB），然后再串联形成$13\times13\times2048$的特征图，将其直接传递到与pooling layer与convolution layer后的特征图进行通道拼接，形成$13\times13\times3072$的特征图，类似于ResNet的identity mapping。
+   
+   <img src="object_detection/2025-07-12-11-17-08-GetImage.png" title="" alt="" width="390">
+
+7. 多尺度训练
+   
+   v2中移除了全连接层，理论上可以输入任意尺寸的图像。整个网络下采样倍数是32，采用了$320\times320,352\times352,...,608\times608$等10种输入图像的尺寸。
