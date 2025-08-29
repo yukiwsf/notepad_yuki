@@ -695,7 +695,7 @@ You Only Look Once
 
 bounding box predictor与ground truth的匹配原则：
 
-当ground truth的中心点落在某个grid cell中时，该grid cell中的所有bounding box predictor回归预测结果中与ground truth的IoU最大的与其进行匹配（负责预测此ground truth）。如果多个ground truth落在同一个grid cell中时，只有一个ground truth能够参与匹配。因此，YOLOv1对相邻目标的预测效果欠佳。
+当ground truth的中心点落在某个grid cell中时，该grid cell中的所有bounding box predictor回归预测结果中与ground truth的IoU最大的与其进行匹配（负责预测此ground truth）。如果多个ground truth落在同一个grid cell中时，只有一个ground truth能够参与匹配。因此，YOLOv1对密集目标的预测效果欠佳。
 
 损失函数：
 
@@ -725,23 +725,23 @@ $C_i={{\rm Pr}({\rm Class}_i|{\rm Object})}\times C_i={{\rm Pr}({\rm Class}_i|{\
 
 论文原名YOLO9000，在v1的基础上增加了以下方法以提高性能：
 
-1. 在所有的卷积层后面增加了BN层
+1. 在所有的卷积层后面增加了BN层（Darknet19）。
    
    CNN网络在训练过程中每层输入的分布一直在改变，会使训练过程难度加大，对网络的每个卷积层后都进行标准化（Standardization），调整数据分布，这样在训练时，网络就不需要在每一层都去适应新的数据分布，更容易收敛。
 
-2. 使用更高分辨率的输入图像进行训练
+2. 使用更高分辨率的输入图像进行训练。
    
    相比于v1使用$224\times224$的输入图像进行训练（$448\times448$分辨率进行测试），v2则使用更高的$416\times416$分辨率进行训练。
 
-3. 加入anchor机制
+3. 加入anchor机制。
    
    v2每个grid cell生成多个anchor，每个anchor都对应一个预测框，相比于v1中每个grid cell只能预测一个目标，可以预测更多的目标，且对相邻目标的预测效果更好，提高召回率。而且，anchor机制回归偏移量相比于直接回归坐标，网络训练时更容易收敛。绝对坐标的范围可能非常大（尤其是大尺寸目标），导致损失函数的梯度不稳定，难以优化；偏移量通常是相对值（例如相对于锚框的缩放或平移），数值范围较小，梯度更平滑，易于模型收敛。
 
-4. 使用聚类设置anchor尺寸
+4. 使用聚类设置anchor尺寸。
    
    v2在训练时使用k-means对ground truth做聚类，尝试找到最合适的anchor尺寸。将所有ground truth的宽高作为坐标$(w,h)$并从中选取n（n=3，每个grid cell生成n个anchor）个作为初始聚类中心，采用k-means算法对这些坐标进行聚类，直到某次迭代后聚类中心的移动量小于阈值，则将这n个聚类中心的坐标$(w,h)$作为设置anchor的尺寸。
 
-5. 预测框偏移量的回归范围限制
+5. 预测框偏移量的回归范围限制。
    
    模型不稳定大多数来自于预测框的位置。在Faster R-CNN中，bounding box回归预测$t_x,t_y,t_w,t_h$（anchor左上角坐标的偏移量以及宽高的归一化对数值），YOLOv2遵循v1的原则，预测框中心点坐标相对于grid cell的偏移量$\sigma(t_y),\sigma(t_y)$，$\sigma$为sigmoid函数，限制输出范围为$(0,1)$。 
    
@@ -755,12 +755,194 @@ $C_i={{\rm Pr}({\rm Class}_i|{\rm Object})}\times C_i={{\rm Pr}({\rm Class}_i|{\
    
    其中，$(c_x,c_y)$是预测框所在grid cell在网络输出特征图（$13\times13$）中的index，$(p_w,p_h)$是预测框对应anchor的宽高（相对于网络输出特征图的宽高）。由于网络输出特征图是相对于输入图像（$416\times416$）的32倍下采样，因此还需要乘以采样倍率才能映射回输入图像。
 
-6. 细粒度特征（Fine-Grained Features）用于小目标检测
+6. 细粒度特征（Fine-Grained Features）用于小目标检测。
    
-   v2引入一种称为passthrough layer（直通层）的方法在特征图中保留一些细节信息以提高对小目标的检测能力。具体来说，就是在最后一个pooling layer之前，特征图的大小是$26\times26\times512$，将其一拆四（LT、RT、LB、RB），然后再串联形成$13\times13\times2048$的特征图，将其直接传递到与pooling layer与convolution layer后的特征图进行通道拼接，形成$13\times13\times3072$的特征图，类似于ResNet的identity mapping。
+   v2引入一种称为passthrough layer（直通层）的方法在特征图中保留一些细节信息以提高对小目标的检测能力。具体来说，就是在最后一个pooling layer（average pooling layer）之前，特征图的大小是$26\times26\times512$，将其一拆四（LT、RT、LB、RB），然后再串联形成$13\times13\times2048$的特征图，将其直接传递到与pooling layer与convolution layer后的特征图进行通道拼接，形成$13\times13\times3072$的特征图，类似于ResNet的identity mapping。
    
    <img src="object_detection/2025-07-12-11-17-08-GetImage.png" title="" alt="" width="390">
 
-7. 多尺度训练
+7. 多尺度训练。
    
-   v2中移除了全连接层，理论上可以输入任意尺寸的图像。整个网络下采样倍数是32，采用了$320\times320,352\times352,...,608\times608$等10种输入图像的尺寸。
+   v2中移除了全连接层（使用average pooling layer作为替代），理论上可以输入任意尺寸的图像。整个网络下采样倍数是32，采用了$320\times320,352\times352,...,608\times608$等10种输入图像的尺寸。
+
+Darknet19：
+
+<img src="object_detection/2025-07-14-15-42-09-image.png" title="" alt="" width="266">
+
+引入anchor机制后，v2训练时正负样本分配策略也随之变化：
+
+ground truth中心点所在的grid cell内与其IoU最大的anchor box为正样本。与所有ground truth的IoU均小于阈值（一般为0.3）的anchor box为负样本。
+
+## YOLOv3
+
+在v2的基础上，优化如下：
+
+1. 借鉴ResNet的思想，增加了backbone（Darknet53）的深度。修改了下采样的方式，用convolution layer代替max pooling layer。
+   
+   Darknet53：
+   
+   <img src="object_detection/2025-07-14-15-48-39-image.png" title="" alt="" width="206">
+
+2. 引入FPN head多尺度预测，输出3个不同尺度的特征图：$13\times13,26\times26,52\times52$，对应$32,16,8$倍下采样。
+   
+   <img src="object_detection/2025-07-14-15-56-47-GetImage.jpeg" title="" alt="" width="465">
+
+3. sigmoid代替softmax作为分类器的激活函数。不使用softmax是因为不要求分类互斥（类别交叉重叠，多标签），因此作者选用独立的二分类器（是否属于这个类），使用二元交叉熵损失函数。原softmax的每一个输入都会经过$1\times1$卷积后输入给一个单独的sigmoid。 
+
+## YOLOv4
+
+相比v3，v4的改进如下：
+
+1. backbone由Darknet53改为CSPDarknet53。
+   
+   CSP（Cross Stage Partial）是一个由DenseBlock小残差结构（参考ResNet的identity mapping）组成的大残差结构。CSP将输入特征图按通道数分为两部分（Part1和Part2）。该结构提供了更加丰富的梯度组合，增强了拟合能力，同时减小了计算量（只有部分通道进入DenseBlock）。
+   
+   <img src="object_detection/2025-07-22-14-25-56-image.png" title="" alt="" width="283">
+   
+   激活函数使用Mish，该函数在Leaky ReLU的基础上改进而来。${\rm Mish}(x) = x \cdot \tanh(\ln(1 + e^x))$
+   
+   <img src="object_detection/2025-07-24-15-03-29-Figure_1.png" title="" alt="" width="359">
+   
+   Mish激活函数的优点：
+   
+   1. 无上界，避免梯度消失。
+   
+   2. 有负值下界，避免神经元死亡。
+   
+   3. 连续可微分，收敛过程稳定。
+   
+   Mish激活函数缺点：计算复杂。
+   
+   正则化方法使用DropBlock。DropBlock借鉴了CutOut数据增强方式，CutOut的主要思路是将输入图像的部分区域清零，而DropBlock则是将CutOut的清零方法应用到特征图上。DropBlock的作者认为卷积、池化是对相邻的像素区域起作用，对DropOut的全局随机清零方式并不敏感。
+   
+   <img src="object_detection/2025-07-24-15-21-17-b117c2cfd7c91519b71e2a9bd08ce299.jpeg" title="" alt="" width="252">
+
+2. neck使用SPP与FPN+PAN模块。
+   
+   SPP模块采用$1\times1,5\times5,9\times9,13\times13$的最大池化的方式，进行多尺度融合，来获得鲁棒的特征表示。采用SPP模块的方式能够更有效的增加主干特征的接收范围，增大感受野。
+   
+   <img src="object_detection/2025-07-24-15-48-04-1.jpg" title="" alt="" width="198">
+   
+   FPN+PAN借鉴了PANet，FPN自顶向下传达强语义特征，而PAN则自底向上传达强定位特征，二者从不同的主干层对不同的检测层进行参数聚合，提高了特征提取能力。
+   
+   <img src="object_detection/2025-07-24-16-24-07-image.png" title="" alt="" width="372">
+
+3. bounding box回归使用CIoU Loss。
+   
+   使用CIoU Loss替换了v3的MSE Loss，同时考虑了bounding box回归的三要素（中心点坐标、面积、长宽比）：
+   
+   $L_{\rm CIoU}=1-{\rm IoU}+\frac{\rho^2(p,p^{gt})}{c^2}+\alpha V$
+   
+   其中$d=\rho(p,p^{gt})$是两个bounding box中心点的欧式距离，$c$是bounding box的对角线长度，$\alpha=\begin{cases}0,&{\rm if\ IoU}\lt0.5\\\frac{V}{(1-{\rm IoU})+V},&{\rm if\ IoU\geq0.5}\end{cases}$是平衡系数，$V=\frac{4}{\pi^2}(\arctan\frac{w^{gt}}{h^{gt}}-\arctan\frac{w}{h})^2$。
+   
+   <img src="object_detection/2025-07-25-15-54-05-image.png" title="" alt="" width="168">
+
+4. 引入新的数据增强方式。
+   
+   1. Random Erase
+      
+      用随机值或训练集的平均像素值作为Mask替换图像的区域。
+      
+      <img title="" src="object_detection/2025-07-29-15-09-25-GetImage.png" alt="" width="291">
+   
+   2. Cutout
+      
+      随机的将样本中的部分区域填充0像素值作为Mask，分类的结果不变。
+      
+      <img src="object_detection/2025-07-30-09-42-07-image.png" title="" alt="" width="245">
+   
+   3. Hide and Seek
+      
+      将图像分割成一个由$S\times S$补丁组成的网格，根据概率随机隐藏一些补丁，从而让模型学习整个对象的样子，而不是单独一块，比如不单独依赖动物的脸做识别。
+      
+      <img src="object_detection/2025-07-30-09-59-43-image.png" title="" alt="" width="283">
+   
+   4. GridMask
+      
+      将图像隐藏在随机生成的Mask网格中，作用也是为了让模型学习对象的整个组成部分。
+      
+      <img src="object_detection/2025-07-30-10-05-42-image.png" title="" alt="" width="195">
+      
+      Mask由随机值$r,d,\delta_x,\delta_y$确定：
+      
+      <img src="object_detection/2025-07-30-10-19-25-image.png" title="" alt="" width="163">
+   
+   5. Mixup
+      
+      将随机的两张样本$x$按比例叠加，标签$y$按比例叠加。
+      
+      <img src="object_detection/2025-07-30-18-06-57-image.png" title="" alt="" width="275">
+   
+   6. CutMix
+      
+      $\tilde{x}={\rm M}\odot x_A+({\rm 1-M})\odot x_B\\\tilde{y}=\lambda y_A+(1-\lambda)y_B$
+      
+      其中，${\rm M}\in\{0,1\}^{W\times H}$是Mask，$\odot$是逐元素乘法，$\lambda$是结合比例。
+      
+      $\rm M$包含一个随机生成的bounding box $B=(r_x,r_y,r_w,r_h)$：
+      
+      $r_x\sim{\rm Unif}(0,W)\\r_w=W\sqrt{1-\lambda}\\r_y\sim{\rm Unif}(0,H)\\r_h=H\sqrt{1-\lambda}$
+      
+      <img src="object_detection/2025-07-31-10-17-55-image.png" title="" alt="" width="214">
+   
+   7. Mosaic
+      
+      CutMix组合了两张图像，而Mosaic使用四张训练图像按一定比例组合成一张图像，使模型学会在更小的范围内识别对象。
+
+## YOLOv5
+
+v5的改进如下：
+
+1. 摈弃Darknet框架，使用基于PyTorch的Ultralytics训练框架。
+
+2. 训练时动态计算anchor尺寸。
+   
+   v5将计算anchor尺寸的过程嵌入到训练代码中，每次训练时，从训练集中自动计算anchor的尺寸。计算bpr（best possible recall，即预设的anchor与groundtruth的比例$r$）：
+   
+   $\max({\rm abs}(1-\frac{h_a}{h_{gt}}),{\rm abs}(1-\frac{w_a}{w_{gt}}))$）
+   
+   如果bpr<0.98，则重新利用k-means计算从训练集中得到新的anchor尺寸。
+
+3. 训练时使用新的anchor与ground truth匹配方式。
+   
+   v5抛弃了传统Max IoU的匹配原则，计算ground truth与FPN每一层特征图上对应anchors（ground truth中心点落在grid cell内的所有anchor，与该grid cell近的2个grid cell内的所有anchor，增加了正样本数量）的宽高比$r$与$\frac{1}{r}$（$r=\max(\frac{w_{gt}}{w_a},\frac{h_{gt}}{h_a})$），取最大值， 如果小于阈值（一般为2），则认为匹配成功（即ground truth由该anchor对应的预测框来预测）。
+   
+   <img src="object_detection/2025-08-20-17-46-10-GetImage_1.png" title="" alt="" width="300">
+   
+   如上图所示，
+   
+   若ground truth落在grid cell中(2,2)的1处，则选取(1,2)、(2,2)、(2,1)内的anchor与之匹配；
+   
+   若ground truth落在grid cell中(2,2)的2处，则选取(1,2)、(2,2)、(2,3)内的anchor与之匹配；
+   
+   若ground truth落在grid cell中(2,2)的3处，则选取(2,1)、(2,2)、(3,2)内的anchor与之匹配；
+   
+   若ground truth落在grid cell中(2,2)的4处，则选取(2,2)、(2,3)、(3,2)内的anchor与之匹配。
+
+4. 预处理引入自适应的图片缩放。
+   
+   常规的预处理方式是将输入原图直接缩放（resize）为指定的宽高（$w_{in}\times h_{in}$）输入给网络。v5使用自适应的图片缩放（letterbox，保留宽高比），缩放比取$\min(\frac{w_{in}}{w_{ori}},\frac{h_{in}}{h_{ori}})$，若缩放后宽高不能被32整除则两端对称填充直至能被32整除。 
+
+5. backbone输入增加focus layer。
+   
+   <img src="object_detection/2025-08-25-15-17-42-GetImage.png" title="" alt="" width="292">
+   
+   <img src="object_detection/2025-08-25-16-28-56-GetImage(1).png" title="" alt="" width="239">
+   
+   focus layer作用是在图像信息不丢失的情况下得到2倍下采样的特征图，但通道数会随之扩展。某些移动端设备不支持该操作，后续版本被卷积替代。
+
+6. backbone和neck部分均引入CSP提升了网络学习能力。
+
+7. 加入EMA在训练时对模型参数进行平滑。
+   
+   EMA（Exponential Moving Average）是一种指数加权平均值，给予近期数据更高权重的平均值。
+   
+   假设有$n$个数据$[\theta_1,\theta_2,...,\theta_n]$，普通平均数为$\overline{v}=\frac{1}{n}\sum\limits^n_{i=2}\theta_i$，EMA为$v_t=\beta v_{t-1}+(1-\beta)\theta_t$，其中，$v_t$表示前$t$个数据的平均值（$v_0=0$），$\beta$是权重（一般设为$0.9$）。
+   
+   在模型训练时，$θ_t$表示第$t$次更新得到的参数权重，$v_t$表示前$t$次更新的参数的指数移动平均数（EMA），$\beta$为调节EMA的权重。
+
+8. 后处理在进行multi-class NMS时，对每个类别的bounding box坐标添加offset，优点是可以捡回一些不同类别的重叠目标，缺点是无法抑制本来就不存在的不同类别的重叠目标。
+
+## YOLOv6
+
+v6由美团提出，模型结构进一步优化，使其在跨平台部署时更加便捷。
